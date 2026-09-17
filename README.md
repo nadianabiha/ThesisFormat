@@ -1,1 +1,2 @@
-# Calon-Penghuni-Syurgaa
+#ThesisFormat
+Sistem Auto-Checker Format & Struktur Proposal Skripsi Berbasis AI
