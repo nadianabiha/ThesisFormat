@@ -216,3 +216,7 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Flutter frontend app nested in the frontend deliverables
+!Frontend-Mobile-Web/Mobile-App/lib/
+!Frontend-Mobile-Web/Mobile-App/lib/**
