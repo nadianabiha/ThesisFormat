@@ -15,7 +15,7 @@ class DocumentCard extends StatelessWidget {
       borderRadius: BorderRadius.circular(16),
       onTap: onTap,
       child: Padding(padding: const EdgeInsets.all(15), child: Row(children: [
-        Container(width: 42, height: 42, decoration: BoxDecoration(color: AppColors.primaryLight, borderRadius: BorderRadius.circular(13)), child: const Icon(Icons.description_outlined, color: AppColors.primary)),
+        Container(width: 42, height: 42, decoration: BoxDecoration(color: AppColors.primaryLight, borderRadius: BorderRadius.circular(13)), child: const Icon(Icons.description_outlined, color: AppColors.primaryExtraDark)),
         const SizedBox(width: 12),
         Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Text(document.fileName, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700)),
@@ -26,7 +26,7 @@ class DocumentCard extends StatelessWidget {
         ])),
         const SizedBox(width: 8),
         Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
-          Text(document.score.toString(), style: const TextStyle(color: AppColors.primary, fontSize: 21, fontWeight: FontWeight.w800)),
+          Text(document.score.toString(), style: const TextStyle(color: AppColors.textPrimary, fontSize: 21, fontWeight: FontWeight.w800)),
           const Text('SCORE', style: TextStyle(color: AppColors.textSecondary, fontSize: 9, letterSpacing: .7)),
         ]),
         const Icon(Icons.chevron_right_rounded, color: AppColors.textSecondary),

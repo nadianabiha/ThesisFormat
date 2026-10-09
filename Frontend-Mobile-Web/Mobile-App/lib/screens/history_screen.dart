@@ -37,7 +37,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
       const SizedBox(height: 12),
       TextField(controller: _search, onChanged: (_) => setState(() {}), decoration: const InputDecoration(hintText: 'Search documents...', prefixIcon: Icon(Icons.search_rounded))),
       const SizedBox(height: 14),
-      Wrap(spacing: 8, children: _filters.map((f) => ChoiceChip(label: Text(f, style: TextStyle(color: _filter == f ? AppColors.primary : AppColors.textPrimary, fontWeight: FontWeight.w600)), selected: _filter == f, onSelected: (_) => setState(() => _filter = f))).toList()),
+      Wrap(spacing: 8, children: _filters.map((f) => ChoiceChip(label: Text(f, style: TextStyle(color: _filter == f ? Colors.white : AppColors.textPrimary, fontWeight: FontWeight.w600)), selected: _filter == f, onSelected: (_) => setState(() => _filter = f))).toList()),
       const SizedBox(height: 17),
       Text('${documents.length} documents', style: const TextStyle(color: AppColors.textSecondary, fontSize: 12)),
       const SizedBox(height: 10),

@@ -36,7 +36,7 @@ class _ProcessingScreenState extends State<ProcessingScreen> {
       const SizedBox(height: 8),
       const Text('This may take a few moments.', textAlign: TextAlign.center, style: TextStyle(color: AppColors.textSecondary)),
       const SizedBox(height: 12),
-      Text(widget.document.name, textAlign: TextAlign.center, style: const TextStyle(color: AppColors.primary, fontWeight: FontWeight.w600)),
+      Text(widget.document.name, textAlign: TextAlign.center, style: const TextStyle(color: AppColors.primaryExtraDark, fontWeight: FontWeight.w600)),
       const SizedBox(height: 30),
       Card(child: Padding(padding: const EdgeInsets.all(16), child: Column(children: List.generate(labels.length, (i) {
         final done = i < _stage;

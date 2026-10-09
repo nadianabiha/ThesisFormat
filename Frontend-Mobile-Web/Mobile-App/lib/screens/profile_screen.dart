@@ -14,7 +14,7 @@ class ProfileScreen extends StatelessWidget {
     final initial = user == null || user.name.trim().isEmpty ? '?' : user.name.trim().substring(0, 1).toUpperCase();
     final children = [
       Center(child: Column(children: [
-        Container(width: 92, height: 92, decoration: const BoxDecoration(color: AppColors.primaryLight, shape: BoxShape.circle), alignment: Alignment.center, child: Text(initial, style: const TextStyle(color: AppColors.primary, fontWeight: FontWeight.w800, fontSize: 34))),
+        Container(width: 92, height: 92, decoration: const BoxDecoration(color: AppColors.primarySoft, shape: BoxShape.circle), alignment: Alignment.center, child: Text(initial, style: const TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.w800, fontSize: 34))),
         const SizedBox(height: 14),
         Text(user?.name ?? '', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800)),
         const SizedBox(height: 4),
@@ -29,7 +29,7 @@ class ProfileScreen extends StatelessWidget {
         _ProfileAction(icon: Icons.info_outline_rounded, label: 'About the App', onTap: () => showAboutDialog(context: context, applicationName: 'ThesisFormat', applicationVersion: '1.0.0', applicationLegalese: 'Academic writing assistant.')),
       ])),
       const SizedBox(height: 16),
-      OutlinedButton.icon(onPressed: onLogout ?? () => _info(context, 'You have signed out.'), icon: const Icon(Icons.logout_rounded), label: const Text('Sign out')),
+      OutlinedButton.icon(onPressed: onLogout ?? () => _info(context, 'You have signed out.'), icon: const Icon(Icons.logout_rounded), style: OutlinedButton.styleFrom(foregroundColor: AppColors.error, side: const BorderSide(color: AppColors.error)), label: const Text('Sign out')),
       const SizedBox(height: 20),
       const Center(child: Text('ThesisFormat · Version 1.0.0', style: TextStyle(color: AppColors.textSecondary, fontSize: 11))),
     ];
@@ -50,5 +50,5 @@ class _ProfileAction extends StatelessWidget {
   final String label;
   final VoidCallback onTap;
   @override
-  Widget build(BuildContext context) => ListTile(leading: Icon(icon, color: AppColors.primary), title: Text(label, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)), trailing: const Icon(Icons.chevron_right_rounded, color: AppColors.textSecondary), onTap: onTap);
+  Widget build(BuildContext context) => ListTile(leading: Icon(icon, color: AppColors.primaryExtraDark), title: Text(label, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)), trailing: const Icon(Icons.chevron_right_rounded, color: AppColors.textSecondary), onTap: onTap);
 }

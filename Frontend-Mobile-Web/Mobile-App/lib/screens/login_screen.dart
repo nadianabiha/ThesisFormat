@@ -46,9 +46,9 @@ class _LoginScreenState extends State<LoginScreen> {
     body: SafeArea(child: Center(child: SingleChildScrollView(
       padding: const EdgeInsets.all(24),
       child: ConstrainedBox(constraints: const BoxConstraints(maxWidth: 430), child: Form(key: _formKey, child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-        Center(child: Container(width: 68, height: 68, decoration: BoxDecoration(color: AppColors.primaryLight, borderRadius: BorderRadius.circular(22)), child: const Icon(Icons.auto_stories_rounded, color: AppColors.primary, size: 34))),
+        Center(child: Container(width: 68, height: 68, decoration: BoxDecoration(color: AppColors.primarySoft, borderRadius: BorderRadius.circular(22)), child: const Icon(Icons.auto_stories_rounded, color: AppColors.primaryDark, size: 34))),
         const SizedBox(height: 18),
-        const Text('ThesisFormat', textAlign: TextAlign.center, style: TextStyle(color: AppColors.primary, fontSize: 28, fontWeight: FontWeight.w800)),
+        const Text('ThesisFormat', textAlign: TextAlign.center, style: TextStyle(color: AppColors.textPrimary, fontSize: 28, fontWeight: FontWeight.w800)),
         const SizedBox(height: 5),
         const SizedBox(height: 38),
         const Text('Welcome back', style: TextStyle(color: AppColors.textPrimary, fontSize: 22, fontWeight: FontWeight.w800)),

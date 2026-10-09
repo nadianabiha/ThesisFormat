@@ -47,7 +47,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     body: SafeArea(child: Center(child: SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
       child: ConstrainedBox(constraints: const BoxConstraints(maxWidth: 430), child: Form(key: _formKey, child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-        Center(child: Container(width: 60, height: 60, decoration: BoxDecoration(color: AppColors.primaryLight, borderRadius: BorderRadius.circular(19)), child: const Icon(Icons.person_add_alt_1_rounded, color: AppColors.primary, size: 30))),
+        Center(child: Container(width: 60, height: 60, decoration: BoxDecoration(color: AppColors.primarySoft, borderRadius: BorderRadius.circular(19)), child: const Icon(Icons.person_add_alt_1_rounded, color: AppColors.primaryDark, size: 30))),
         const SizedBox(height: 17),
         const Text('Create an account', textAlign: TextAlign.center, style: TextStyle(color: AppColors.textPrimary, fontSize: 25, fontWeight: FontWeight.w800)),
         const SizedBox(height: 6),

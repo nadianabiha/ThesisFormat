@@ -49,10 +49,10 @@ class _Dashboard extends StatelessWidget {
   @override
   Widget build(BuildContext context) => ListView(padding: const EdgeInsets.fromLTRB(22, 18, 22, 28), children: [
     Row(children: [
-      Container(width: 44, height: 44, decoration: BoxDecoration(color: AppColors.primaryLight, borderRadius: BorderRadius.circular(14)), child: const Icon(Icons.auto_stories_rounded, color: AppColors.primary)),
+      Container(width: 44, height: 44, decoration: BoxDecoration(color: AppColors.primarySoft, borderRadius: BorderRadius.circular(14)), child: const Icon(Icons.auto_stories_rounded, color: AppColors.primaryDark)),
       const SizedBox(width: 12),
       const Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text('ThesisFormat', style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.w800, fontSize: 17)),
+        Text('ThesisFormat', style: TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.w800, fontSize: 17)),
         Text('Academic writing assistant', style: TextStyle(color: AppColors.textSecondary, fontSize: 11)),
       ])),
       IconButton(onPressed: () => ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('You have no new notifications.'))), icon: const Icon(Icons.notifications_none_rounded)),
@@ -62,15 +62,15 @@ class _Dashboard extends StatelessWidget {
     const SizedBox(height: 7),
     const Text('Review your document before your next advising session.', style: TextStyle(color: AppColors.textSecondary, fontSize: 14)),
     const SizedBox(height: 23),
-    Material(color: AppColors.secondary, borderRadius: BorderRadius.circular(20), child: InkWell(
+    Material(color: AppColors.primary, borderRadius: BorderRadius.circular(20), child: InkWell(
       borderRadius: BorderRadius.circular(20), onTap: onUpload,
       child: Padding(padding: const EdgeInsets.all(20), child: Row(children: [
         Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          const Text('Review a New Document', style: TextStyle(color: AppColors.primaryDark, fontSize: 18, fontWeight: FontWeight.w800)),
+          const Text('Review a New Document', style: TextStyle(color: AppColors.textPrimary, fontSize: 18, fontWeight: FontWeight.w800)),
           const SizedBox(height: 6),
-          const Text('Upload a PDF or DOCX to get a formatting summary.', style: TextStyle(color: AppColors.primaryDark, height: 1.45, fontSize: 12)),
+          const Text('Upload a PDF or DOCX to get a formatting summary.', style: TextStyle(color: AppColors.textPrimary, height: 1.45, fontSize: 12)),
           const SizedBox(height: 15),
-          Container(padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 9), decoration: BoxDecoration(color: AppColors.primaryDark, borderRadius: BorderRadius.circular(11)), child: const Row(mainAxisSize: MainAxisSize.min, children: [Text('Start review', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 12)), SizedBox(width: 7), Icon(Icons.arrow_forward_rounded, color: Colors.white, size: 16)])),
+          Container(padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 9), decoration: BoxDecoration(color: AppColors.primaryExtraDark, borderRadius: BorderRadius.circular(11)), child: const Row(mainAxisSize: MainAxisSize.min, children: [Text('Start review', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 12)), SizedBox(width: 7), Icon(Icons.arrow_forward_rounded, color: Colors.white, size: 16)])),
         ])),
         const SizedBox(width: 12),
         Container(width: 56, height: 56, decoration: BoxDecoration(color: AppColors.primaryDark.withValues(alpha: .10), borderRadius: BorderRadius.circular(18)), child: const Icon(Icons.upload_file_rounded, color: AppColors.primaryDark, size: 30)),
@@ -108,7 +108,7 @@ class _LastAudit extends StatelessWidget {
       Container(width: 42, height: 42, decoration: BoxDecoration(color: AppColors.infoBackground, borderRadius: BorderRadius.circular(13)), child: const Icon(Icons.description_outlined, color: AppColors.info)),
       const SizedBox(width: 12),
       const Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text('Proposal_Thesis.docx', style: TextStyle(fontWeight: FontWeight.w700)), SizedBox(height: 4), Text('Proposal · Oct 6, 2026', style: TextStyle(color: AppColors.textSecondary, fontSize: 11))])),
-      const Text('86', style: TextStyle(color: AppColors.primary, fontSize: 24, fontWeight: FontWeight.w800)),
+      const Text('86', style: TextStyle(color: AppColors.textPrimary, fontSize: 24, fontWeight: FontWeight.w800)),
       const Text('/100', style: TextStyle(color: AppColors.textSecondary, fontSize: 11)),
     ]),
     const SizedBox(height: 15),
@@ -126,7 +126,7 @@ class _DocumentRow extends StatelessWidget {
     const Icon(Icons.description_outlined, color: AppColors.secondary),
     const SizedBox(width: 11),
     Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(document.name, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 12)), const SizedBox(height: 4), Text('${document.displayDocumentType} · ${document.date}', style: const TextStyle(color: AppColors.textSecondary, fontSize: 10))])),
-    Text(document.score.toString(), style: const TextStyle(color: AppColors.primary, fontWeight: FontWeight.w800, fontSize: 18)),
+    Text(document.score.toString(), style: const TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.w800, fontSize: 18)),
     const Icon(Icons.chevron_right_rounded, color: AppColors.textSecondary),
   ]))));
 }

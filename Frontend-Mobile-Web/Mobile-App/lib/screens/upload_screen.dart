@@ -51,14 +51,14 @@ class _UploadScreenState extends State<UploadScreen> {
       const SizedBox(height: 24),
       const Text('Document type', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
       const SizedBox(height: 11),
-      Wrap(spacing: 8, runSpacing: 7, children: ['Thesis', 'Proposal', 'Research Paper', 'Research Report'].map((type) => ChoiceChip(label: Text(type, style: TextStyle(color: _type == _documentTypeId(type) ? AppColors.primary : AppColors.textPrimary, fontWeight: FontWeight.w600)), selected: _type == _documentTypeId(type), onSelected: (_) => setState(() => _type = _documentTypeId(type)))).toList()),
+      Wrap(spacing: 8, runSpacing: 7, children: ['Thesis', 'Proposal', 'Research Paper', 'Research Report'].map((type) => ChoiceChip(label: Text(type, style: TextStyle(color: _type == _documentTypeId(type) ? Colors.white : AppColors.textPrimary, fontWeight: FontWeight.w600)), selected: _type == _documentTypeId(type), onSelected: (_) => setState(() => _type = _documentTypeId(type)))).toList()),
       const SizedBox(height: 24),
       const Text('Document file', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
       const SizedBox(height: 11),
       UploadCard(file: _file, onPick: _pickFile, onRemove: () => setState(() => _file = null)),
       if (_error != null) Padding(padding: const EdgeInsets.only(top: 10), child: Text(_error!, style: const TextStyle(color: AppColors.error, fontSize: 12))),
       const SizedBox(height: 18),
-      const Card(child: Padding(padding: EdgeInsets.all(14), child: Row(children: [Icon(Icons.lock_outline_rounded, color: AppColors.secondary, size: 18), SizedBox(width: 9), Expanded(child: Text('Scanned documents and images are not supported yet.', style: TextStyle(color: AppColors.textSecondary, fontSize: 12)))]))),
+      const Card(child: Padding(padding: EdgeInsets.all(14), child: Row(children: [Icon(Icons.lock_outline_rounded, color: AppColors.primaryDark, size: 18), SizedBox(width: 9), Expanded(child: Text('Scanned documents and images are not supported yet.', style: TextStyle(color: AppColors.textSecondary, fontSize: 12)))]))),
       const SizedBox(height: 22),
       ElevatedButton.icon(onPressed: _type == null || _file == null ? null : () {
         final file = _file!;

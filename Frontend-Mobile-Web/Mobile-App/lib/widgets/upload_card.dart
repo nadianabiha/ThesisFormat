@@ -16,7 +16,7 @@ class UploadCard extends StatelessWidget {
   Widget build(BuildContext context) {
     if (file == null) {
       return Card(child: Padding(padding: const EdgeInsets.all(22), child: Column(children: [
-        Container(width: 58, height: 58, decoration: const BoxDecoration(color: AppColors.primaryLight, shape: BoxShape.circle), child: const Icon(Icons.cloud_upload_outlined, color: AppColors.primary, size: 29)),
+        Container(width: 58, height: 58, decoration: const BoxDecoration(color: AppColors.primarySoft, shape: BoxShape.circle), child: const Icon(Icons.cloud_upload_outlined, color: AppColors.primaryDark, size: 29)),
         const SizedBox(height: 14),
         const Text('Choose a PDF or DOCX file', style: TextStyle(fontWeight: FontWeight.w700)),
         const SizedBox(height: 5),

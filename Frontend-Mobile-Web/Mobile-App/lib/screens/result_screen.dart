@@ -24,7 +24,7 @@ class ResultScreen extends StatelessWidget {
         Card(child: Padding(padding: const EdgeInsets.all(19), child: Column(children: [
           SizedBox(width: 126, height: 126, child: Stack(alignment: Alignment.center, children: [
             SizedBox(width: 126, height: 126, child: CircularProgressIndicator(value: result.totalScore / 100, strokeWidth: 10, strokeCap: StrokeCap.round, backgroundColor: AppColors.secondaryLight)),
-            Column(mainAxisSize: MainAxisSize.min, children: [Text(result.totalScore.toString(), style: const TextStyle(color: AppColors.primary, fontSize: 38, fontWeight: FontWeight.w800)), const Text('/100', style: TextStyle(color: AppColors.textSecondary, fontSize: 12))]),
+            Column(mainAxisSize: MainAxisSize.min, children: [Text(result.totalScore.toString(), style: const TextStyle(color: AppColors.textPrimary, fontSize: 38, fontWeight: FontWeight.w800)), const Text('/100', style: TextStyle(color: AppColors.textSecondary, fontSize: 12))]),
           ])),
           const SizedBox(height: 14),
           const Text('Your document is looking good', textAlign: TextAlign.center, style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800)),
