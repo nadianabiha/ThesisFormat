@@ -1,17 +1,17 @@
 import 'package:flutter/material.dart';
 
 class AppColors {
-  static const primary = Color(0xFF0C7E83);
-  static const primaryDark = Color(0xFF052F48);
-  static const primaryLight = Color(0xFFE2F8F5);
-  static const secondary = Color(0xFF50D3CA);
-  static const secondaryLight = Color(0xFFE5FAF7);
-  static const accent = Color(0xFFFFCF3D);
-  static const background = Color(0xFFF5FAFA);
+  static const primary = Color(0xFFB24577);
+  static const primaryDark = Color(0xFF29263D);
+  static const primaryLight = Color(0xFFF7E5ED);
+  static const secondary = Color(0xFF3FA68B);
+  static const secondaryLight = Color(0xFFE1F2EA);
+  static const accent = Color(0xFFD9D0B8);
+  static const background = Color(0xFFFAF8F3);
   static const surface = Color(0xFFFFFFFF);
-  static const textPrimary = Color(0xFF183241);
-  static const textSecondary = Color(0xFF627782);
-  static const border = Color(0xFFDCE8E8);
+  static const textPrimary = Color(0xFF28263A);
+  static const textSecondary = Color(0xFF716D79);
+  static const border = Color(0xFFE7E0DB);
   static const success = Color(0xFF22C55E);
   static const successBackground = Color(0xFFECFDF3);
   static const warning = Color(0xFFF59E0B);
@@ -25,7 +25,7 @@ class AppColors {
 class AppTheme {
   static ThemeData get light {
     final scheme = ColorScheme.fromSeed(seedColor: AppColors.primary, brightness: Brightness.light)
-        .copyWith(primary: AppColors.primary, onPrimary: Colors.white, secondary: AppColors.secondary, onSecondary: Colors.white, surface: AppColors.surface, onSurface: AppColors.textPrimary, onSurfaceVariant: AppColors.textSecondary, error: AppColors.error);
+        .copyWith(primary: AppColors.primary, onPrimary: Colors.white, secondary: AppColors.secondary, onSecondary: AppColors.primaryDark, surface: AppColors.surface, onSurface: AppColors.textPrimary, onSurfaceVariant: AppColors.textSecondary, error: AppColors.error);
     return ThemeData(
       useMaterial3: true,
       colorScheme: scheme,
