@@ -62,18 +62,18 @@ class _Dashboard extends StatelessWidget {
     const SizedBox(height: 7),
     const Text('Review your document before your next advising session.', style: TextStyle(color: AppColors.textSecondary, fontSize: 14)),
     const SizedBox(height: 23),
-    Material(color: AppColors.primary, borderRadius: BorderRadius.circular(20), child: InkWell(
+    Material(color: AppColors.secondary, borderRadius: BorderRadius.circular(20), child: InkWell(
       borderRadius: BorderRadius.circular(20), onTap: onUpload,
       child: Padding(padding: const EdgeInsets.all(20), child: Row(children: [
         Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          const Text('Review a New Document', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w800)),
+          const Text('Review a New Document', style: TextStyle(color: AppColors.primaryDark, fontSize: 18, fontWeight: FontWeight.w800)),
           const SizedBox(height: 6),
-          const Text('Upload a PDF or DOCX to get a formatting summary.', style: TextStyle(color: Color(0xFFD9E5F1), height: 1.45, fontSize: 12)),
+          const Text('Upload a PDF or DOCX to get a formatting summary.', style: TextStyle(color: AppColors.primaryDark, height: 1.45, fontSize: 12)),
           const SizedBox(height: 15),
           Container(padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 9), decoration: BoxDecoration(color: AppColors.accent, borderRadius: BorderRadius.circular(11)), child: const Row(mainAxisSize: MainAxisSize.min, children: [Text('Start review', style: TextStyle(color: AppColors.primaryDark, fontWeight: FontWeight.w700, fontSize: 12)), SizedBox(width: 7), Icon(Icons.arrow_forward_rounded, color: AppColors.primaryDark, size: 16)])),
         ])),
         const SizedBox(width: 12),
-        Container(width: 56, height: 56, decoration: BoxDecoration(color: Colors.white.withValues(alpha: .12), borderRadius: BorderRadius.circular(18)), child: const Icon(Icons.upload_file_rounded, color: Colors.white, size: 30)),
+        Container(width: 56, height: 56, decoration: BoxDecoration(color: AppColors.primaryDark.withValues(alpha: .10), borderRadius: BorderRadius.circular(18)), child: const Icon(Icons.upload_file_rounded, color: AppColors.primaryDark, size: 30)),
       ])),
     )),
     const SizedBox(height: 27),
