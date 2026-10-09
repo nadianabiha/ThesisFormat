@@ -220,3 +220,7 @@ __marimo__/
 # Flutter frontend app nested in the frontend deliverables
 !Frontend-Mobile-Web/Mobile-App/lib/
 !Frontend-Mobile-Web/Mobile-App/lib/**
+
+# Flutter source in thesisformat/frontend/mobile
+!thesisformat/frontend/mobile/lib/
+!thesisformat/frontend/mobile/lib/**
