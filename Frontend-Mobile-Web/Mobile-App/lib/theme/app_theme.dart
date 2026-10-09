@@ -1,17 +1,17 @@
 import 'package:flutter/material.dart';
 
 class AppColors {
-  static const primary = Color(0xFF159BCB);
-  static const primaryDark = Color(0xFF073B5A);
-  static const primaryLight = Color(0xFFE6F5FA);
-  static const secondary = Color(0xFF43B5A5);
-  static const secondaryLight = Color(0xFFDDF3EF);
-  static const accent = Color(0xFFF5CC45);
-  static const background = Color(0xFFF6F8FB);
+  static const primary = Color(0xFF0C7E83);
+  static const primaryDark = Color(0xFF052F48);
+  static const primaryLight = Color(0xFFE2F8F5);
+  static const secondary = Color(0xFF50D3CA);
+  static const secondaryLight = Color(0xFFE5FAF7);
+  static const accent = Color(0xFFFFCF3D);
+  static const background = Color(0xFFF5FAFA);
   static const surface = Color(0xFFFFFFFF);
-  static const textPrimary = Color(0xFF1F2937);
-  static const textSecondary = Color(0xFF6B7280);
-  static const border = Color(0xFFE5E7EB);
+  static const textPrimary = Color(0xFF183241);
+  static const textSecondary = Color(0xFF627782);
+  static const border = Color(0xFFDCE8E8);
   static const success = Color(0xFF22C55E);
   static const successBackground = Color(0xFFECFDF3);
   static const warning = Color(0xFFF59E0B);
@@ -38,7 +38,7 @@ class AppTheme {
       outlinedButtonTheme: OutlinedButtonThemeData(style: OutlinedButton.styleFrom(foregroundColor: AppColors.primary, minimumSize: const Size.fromHeight(48), side: const BorderSide(color: AppColors.border), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)))),
       navigationBarTheme: NavigationBarThemeData(backgroundColor: Colors.white, indicatorColor: AppColors.primaryLight, height: 70, labelTextStyle: WidgetStateProperty.resolveWith((s) => TextStyle(fontSize: 11, fontWeight: s.contains(WidgetState.selected) ? FontWeight.w700 : FontWeight.w500, color: s.contains(WidgetState.selected) ? AppColors.primary : AppColors.textSecondary))),
       chipTheme: ChipThemeData(backgroundColor: Colors.white, selectedColor: AppColors.primaryLight, side: const BorderSide(color: AppColors.border), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)), labelStyle: const TextStyle(fontSize: 12)),
-      progressIndicatorTheme: const ProgressIndicatorThemeData(color: AppColors.secondary, linearTrackColor: AppColors.secondaryLight),
+      progressIndicatorTheme: const ProgressIndicatorThemeData(color: AppColors.primary, linearTrackColor: AppColors.secondaryLight),
       snackBarTheme: SnackBarThemeData(behavior: SnackBarBehavior.floating, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
     );
   }
