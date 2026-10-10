@@ -85,3 +85,32 @@ def parse_docx(file_path):
         "sections": sections,
         "paragraph_count": len(paragraphs),
     }
+
+
+def extract_docx_metadata(file_path):
+    """
+    Mengambil metadata umum dan informasi format dari dokumen DOCX.
+    Fungsi ini menggunakan hasil parse_docx agar tidak menduplikasi
+    logika ekstraksi yang sudah tersedia.
+    """
+    parsed = parse_docx(file_path)
+
+    font_names = set()
+    font_sizes = set()
+
+    for paragraph in parsed["paragraphs"]:
+        for run in paragraph["runs"]:
+            if run["font_name"]:
+                font_names.add(run["font_name"])
+
+            if run["font_size"] is not None:
+                font_sizes.add(run["font_size"])
+
+    return {
+        "file_name": parsed["file_name"],
+        "paragraph_count": parsed["paragraph_count"],
+        "section_count": len(parsed["sections"]),
+        "sections": parsed["sections"],
+        "font_names": sorted(font_names),
+        "font_sizes": sorted(font_sizes),
+    }
