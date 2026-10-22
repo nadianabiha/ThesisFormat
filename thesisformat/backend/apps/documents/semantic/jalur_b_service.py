@@ -1,40 +1,165 @@
+
+import json
+import re
+import time
+
+from google.genai import errors
 from apps.documents.semantic.gemini_client import generate
+
+
+def generate_with_retry(prompt, max_retries=3):
+    """
+    Mencoba ulang permintaan Gemini jika server sedang bermasalah.
+    """
+    for attempt in range(max_retries):
+        try:
+            return generate(prompt)
+
+        except errors.ServerError as exc:
+            # Coba ulang hanya untuk error server sementara.
+            if getattr(exc, "code", None) not in (429, 500, 502, 503, 504):
+                raise
+
+            if attempt == max_retries - 1:
+                raise
+
+            delay = 2 ** (attempt + 1)
+            print(
+                f"Gemini sedang bermasalah. "
+                f"Mencoba ulang dalam {delay} detik..."
+            )
+            time.sleep(delay)
 
 
 def run_jalur_b(parsed_document, document_type=None):
     """
-    Jalur B entry point.
-    - Ambil teks dari hasil parse Jalur A (parsed_document)
-    - Kirim ke Gemini untuk dicek secara semantik
-    - Kembalikan hasil dengan bentuk yang sama seperti run_jalur_a
+    Menganalisis isi dokumen menggunakan Gemini.
+    Jika Gemini gagal, kembalikan error tanpa menghentikan
+    pemeriksaan fisik Jalur A.
     """
+
+    paragraphs = parsed_document.get("paragraphs", [])
     full_text = " ".join(
-        paragraph["text"] for paragraph in parsed_document.get("paragraphs", [])
-    )
+        paragraph.get("text", "")
+        for paragraph in paragraphs
+        if isinstance(paragraph, dict)
+    ).strip()
+
+    if not full_text:
+        return {
+            "raw_response": "",
+            "findings": [],
+            "summary": {
+                "passed": 0,
+                "failed": 0,
+                "total": 0,
+            },
+            "error": "Tidak ada teks yang berhasil diekstrak dari dokumen.",
+        }
 
     prompt = f"""
-    Kamu adalah pemeriksa format {document_type or "karya tulis ilmiah"}.
-    Analisis teks berikut, cek konsistensi sitasi, struktur, dan tata bahasa.
-    Balas HANYA dalam format JSON seperti ini:
-    {{"findings": [{{"issue": "...", "location": "...", "status": "failed"}}]}}
+Kamu adalah pemeriksa format dan isi {document_type or "karya tulis ilmiah"}.
 
-    Teks: {full_text[:3000]}
-    """
+Analisis teks berikut untuk menemukan masalah yang benar-benar
+didukung oleh teks, seperti konsistensi sitasi, struktur penulisan,
+dan tata bahasa.
 
-    raw_response = generate(prompt)
+Balas HANYA dengan JSON valid menggunakan format:
+{{
+  "findings": [
+    {{
+      "issue": "Penjelasan masalah",
+      "location": "Lokasi atau bagian dokumen",
+      "status": "failed"
+    }}
+  ]
+}}
 
-    # untuk sekarang findings masih kosong dulu sampai parsing JSON-nya siap
-    findings = []
+Aturan:
+- Gunakan status "failed" untuk masalah yang ditemukan.
+- Gunakan status "passed" hanya untuk hal yang jelas sudah sesuai.
+- Jangan mengarang nomor halaman atau informasi yang tidak tersedia.
+- Jika lokasi tidak diketahui, tulis "Lokasi tidak diketahui".
+- Jika tidak ada temuan yang dapat dipastikan, gunakan findings kosong.
+- Jangan menganggap margin, tata letak, atau ukuran font dapat
+  diverifikasi hanya dari teks hasil ekstraksi.
 
-    passed_count = sum(1 for item in findings if item["status"] == "passed")
-    failed_count = sum(1 for item in findings if item["status"] == "failed")
+Teks dokumen:
+{full_text[:12000]}
+"""
 
-    return {
-        "raw_response": raw_response,
-        "findings": findings,
-        "summary": {
-            "passed": passed_count,
-            "failed": failed_count,
-            "total": len(findings),
-        },
-    }
+    raw_response = ""
+
+    try:
+        raw_response = generate_with_retry(prompt)
+
+        if not isinstance(raw_response, str) or not raw_response.strip():
+            raise ValueError("Gemini tidak memberikan respons teks.")
+
+        cleaned = raw_response.strip()
+        cleaned = re.sub(
+            r"^```(?:json)?\s*",
+            "",
+            cleaned,
+            flags=re.IGNORECASE,
+        )
+        cleaned = re.sub(r"\s*```$", "", cleaned)
+
+        parsed = json.loads(cleaned)
+        raw_findings = parsed.get("findings", [])
+
+        if not isinstance(raw_findings, list):
+            raise ValueError("Format findings dari Gemini tidak valid.")
+
+        findings = []
+
+        for item in raw_findings:
+            if not isinstance(item, dict):
+                continue
+
+            issue = str(item.get("issue", "")).strip()
+            if not issue:
+                continue
+
+            status_value = str(item.get("status", "")).lower().strip()
+            status = "passed" if status_value == "passed" else "failed"
+
+            findings.append({
+                "issue": issue,
+                "location": str(
+                    item.get("location") or "Lokasi tidak diketahui"
+                ),
+                "status": status,
+            })
+
+        passed_count = sum(
+            1 for item in findings if item["status"] == "passed"
+        )
+        failed_count = sum(
+            1 for item in findings if item["status"] == "failed"
+        )
+
+        return {
+            "raw_response": raw_response,
+            "findings": findings,
+            "summary": {
+                "passed": passed_count,
+                "failed": failed_count,
+                "total": len(findings),
+            },
+        }
+
+    except Exception as exc:
+        # Kegagalan Gemini tidak perlu menghentikan seluruh proses upload.
+        print(f"Analisis Jalur B gagal: {exc}")
+
+        return {
+            "raw_response": raw_response,
+            "findings": [],
+            "summary": {
+                "passed": 0,
+                "failed": 0,
+                "total": 0,
+            },
+            "error": str(exc),
+        }

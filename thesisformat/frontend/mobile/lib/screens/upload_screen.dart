@@ -5,6 +5,7 @@ import '../models/audit_result.dart';
 import '../theme/app_theme.dart';
 import 'processing_screen.dart';
 import '../widgets/upload_card.dart';
+import '../services/api_service.dart';
 
 class UploadScreen extends StatefulWidget {
   const UploadScreen({super.key});
@@ -16,6 +17,7 @@ class _UploadScreenState extends State<UploadScreen> {
   String? _type;
   PlatformFile? _file;
   String? _error;
+  bool _isUploading = false;
 
   String _documentTypeId(String label) => switch (label) {
     'Thesis' => 'skripsi',
@@ -26,7 +28,7 @@ class _UploadScreenState extends State<UploadScreen> {
   };
 
   Future<void> _pickFile() async {
-    final result = await FilePicker.platform.pickFiles(type: FileType.custom, allowedExtensions: const ['pdf', 'docx'], withData: false);
+    final result = await FilePicker.platform.pickFiles(type: FileType.custom, allowedExtensions: const ['pdf', 'docx'], withData: true);
     if (!mounted || result == null || result.files.isEmpty) return;
     final file = result.files.single;
     final ext = file.extension?.toLowerCase();
@@ -60,13 +62,61 @@ class _UploadScreenState extends State<UploadScreen> {
       const SizedBox(height: 18),
       const Card(child: Padding(padding: EdgeInsets.all(14), child: Row(children: [Icon(Icons.lock_outline_rounded, color: AppColors.primaryDark, size: 18), SizedBox(width: 9), Expanded(child: Text('Scanned documents and images are not supported yet.', style: TextStyle(color: AppColors.textSecondary, fontSize: 12)))]))),
       const SizedBox(height: 22),
-      ElevatedButton.icon(onPressed: _type == null || _file == null ? null : () {
-        final file = _file!;
-        // TODO: Ganti simulasi ini dengan ApiService.uploadDocument() multipart ke backend Person 1.
-        final doc = DocumentModel(fileName: file.name, documentType: _type!, uploadDate: 'Oct 6, 2026', status: 'completed', score: 86, findingsCount: 5, sizeBytes: file.size, result: AuditResult.demo);
-        ThesisDocument.addToHistory(doc);
-        Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => ProcessingScreen(document: doc)));
-      }, icon: const Icon(Icons.fact_check_outlined), label: const Text('Start review')),
+      ElevatedButton.icon(
+        onPressed: _type == null || _file == null || _isUploading
+            ? null
+            : () async {
+                final file = _file!;
+
+                if (file.bytes == null) {
+                  setState(() {
+                    _error = 'File tidak dapat dibaca. Silakan pilih ulang.';
+                  });
+                  return;
+                }
+
+                setState(() {
+                  _isUploading = true;
+                  _error = null;
+                });
+
+                try {
+                  final doc = await const ApiService().uploadDocument(
+                    fileName: file.name,
+                    bytes: file.bytes!,
+                    documentType: _type!,
+                  );
+
+                  if (!mounted) return;
+
+                  ThesisDocument.addToHistory(doc);
+
+                  Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => ProcessingScreen(document: doc),
+                    ),
+                  );
+                } catch (e) {
+                  if (!mounted) return;
+
+                  setState(() {
+                    _error = 'Upload gagal: $e';
+                  });
+                } finally {
+                  if (mounted) {
+                    setState(() => _isUploading = false);
+                  }
+                }
+              },
+        icon: _isUploading
+            ? const SizedBox(
+                width: 18,
+                height: 18,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              )
+            : const Icon(Icons.fact_check_outlined),
+        label: Text(_isUploading ? 'Uploading...' : 'Start review'),
+      ),
     ])),
   );
 }

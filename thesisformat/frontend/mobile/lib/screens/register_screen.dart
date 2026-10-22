@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
-import '../services/auth_service.dart';
+import '../services/api_service.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -16,6 +16,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _confirm = TextEditingController();
   bool _hidePassword = true;
   bool _hideConfirm = true;
+  bool _submitting = false;
 
   @override
   void dispose() {
@@ -26,18 +27,29 @@ class _RegisterScreenState extends State<RegisterScreen> {
     super.dispose();
   }
 
-  void _register() {
-    // TODO: Hubungkan ke endpoint register backend.
-    if (!_formKey.currentState!.validate()) return;
+  Future<void> _register() async {
+    if (!_formKey.currentState!.validate() || _submitting) return;
+    setState(() => _submitting = true);
     try {
-      AuthService.instance.register(
+      await const ApiService().register(
         name: _name.text,
         email: _email.text,
         password: _password.text,
       );
+      if (!mounted) return;
       Navigator.of(context).pop(_email.text.trim());
-    } on AuthException catch (error) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error.message)));
+    } on ApiException catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(error.message)),
+      );
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Tidak dapat terhubung ke backend: $error')),
+      );
+    } finally {
+      if (mounted) setState(() => _submitting = false);
     }
   }
 
@@ -63,19 +75,19 @@ class _RegisterScreenState extends State<RegisterScreen> {
         const SizedBox(height: 14),
         const Text('Password', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
         const SizedBox(height: 7),
-        TextFormField(controller: _password, obscureText: _hidePassword, decoration: InputDecoration(hintText: 'At least 6 characters', prefixIcon: const Icon(Icons.lock_outline_rounded), suffixIcon: IconButton(onPressed: () => setState(() => _hidePassword = !_hidePassword), icon: Icon(_hidePassword ? Icons.visibility_outlined : Icons.visibility_off_outlined))), validator: (v) => v == null || v.length < 6 ? 'Password must be at least 6 characters.' : null),
+        TextFormField(controller: _password, obscureText: _hidePassword, decoration: InputDecoration(hintText: 'At least 6 characters', prefixIcon: const Icon(Icons.lock_outline_rounded), suffixIcon: IconButton(onPressed: () => setState(() => _hidePassword = !_hidePassword), icon: Icon(_hidePassword ? Icons.visibility_outlined : Icons.visibility_off_outlined))), validator: (v) => v == null || v.length < 8 ? 'Password must be at least 8 characters.' : null),
         const SizedBox(height: 14),
         const Text('Confirm password', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
         const SizedBox(height: 7),
         TextFormField(controller: _confirm, obscureText: _hideConfirm, decoration: InputDecoration(hintText: 'Re-enter your password', prefixIcon: const Icon(Icons.lock_outline_rounded), suffixIcon: IconButton(onPressed: () => setState(() => _hideConfirm = !_hideConfirm), icon: Icon(_hideConfirm ? Icons.visibility_outlined : Icons.visibility_off_outlined))), validator: (v) => v != _password.text ? 'Passwords do not match.' : null),
         const SizedBox(height: 22),
-        ElevatedButton(onPressed: _register, child: const Text('Sign up')),
+        ElevatedButton(onPressed: _submitting ? null : _register, child: Text(_submitting ? 'Creating account...' : 'Sign up')),
         const SizedBox(height: 12),
         Center(child: Wrap(alignment: WrapAlignment.center, crossAxisAlignment: WrapCrossAlignment.center, children: [
           const Text('Already have an account?', style: TextStyle(color: AppColors.textSecondary, fontSize: 13)),
           TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('Sign in')),
         ])),
-        const Center(child: Text('Demo registration. Accounts are stored only for this session.', textAlign: TextAlign.center, style: TextStyle(color: AppColors.textSecondary, fontSize: 11))),
+        const Center(child: Text('Your account will be saved securely by the backend.', textAlign: TextAlign.center, style: TextStyle(color: AppColors.textSecondary, fontSize: 11))),
       ]))),
     ))),
   );

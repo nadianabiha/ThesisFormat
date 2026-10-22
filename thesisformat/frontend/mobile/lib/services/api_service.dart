@@ -1,41 +1,210 @@
-﻿import '../models/audit_result.dart';
-import '../models/document_model.dart';
-import '../services/auth_service.dart';
+import 'dart:convert';
 
-/// Mock client for the frontend. No HTTP requests are made yet.
+import 'package:http/http.dart' as http;
+
+import '../models/audit_result.dart';
+import '../models/document_model.dart';
+import '../models/user_model.dart';
+import 'auth_service.dart';
+
+/// API client untuk backend Django.
+/// Untuk Flutter Web di komputer yang sama, gunakan 127.0.0.1:8000.
+/// Bisa diganti saat menjalankan Flutter dengan --dart-define=API_BASE_URL=...
 class ApiService {
   const ApiService();
 
-  // TODO: Integrasikan endpoint login Django dari Person 1.
-  Future<Map<String, dynamic>> login({required String email, required String password}) async {
-    final user = AuthService.instance.login(email: email, password: password);
+  static const String baseUrl = String.fromEnvironment(
+    'API_BASE_URL',
+    defaultValue: 'http://127.0.0.1:8000',
+  );
+
+  Future<Map<String, dynamic>> login({
+    required String email,
+    required String password,
+  }) async {
+    final response = await http.post(
+      Uri.parse('$baseUrl/api/token/'),
+      headers: const {'Content-Type': 'application/json'},
+      body: jsonEncode({
+        // Backend token endpoint menggunakan field "username".
+        // Backend kita akan membuat username sama dengan email.
+        'username': email.trim().toLowerCase(),
+        'password': password,
+      }),
+    );
+
+    final data = _decodeResponse(response);
+    final userJson = data['user'];
+    if (userJson is! Map<String, dynamic>) {
+      throw const ApiException(
+        'Login berhasil tetapi data pengguna tidak dikirim oleh backend.',
+      );
+    }
+
+    final user = UserModel.fromJson(userJson);
+    final access = data['access']?.toString();
+    final refresh = data['refresh']?.toString();
+    if (access == null || access.isEmpty) {
+      throw const ApiException('Token akses tidak ditemukan dari backend.');
+    }
+
+    AuthService.instance.setSession(
+      user: user,
+      accessToken: access,
+      refreshToken: refresh,
+    );
+
     return {
-      'access': 'dummy-access-token',
-      'refresh': 'dummy-refresh-token',
+      ...data,
       'user': user.toJson(),
     };
   }
 
-  // TODO: Hubungkan ke endpoint register backend.
-  Future<Map<String, dynamic>> register({required String name, required String email, required String password}) async {
-    return AuthService.instance.register(name: name, email: email, password: password).toJson();
+  Future<Map<String, dynamic>> register({
+    required String name,
+    required String email,
+    required String password,
+  }) async {
+    final response = await http.post(
+      Uri.parse('$baseUrl/api/users/register/'),
+      headers: const {'Content-Type': 'application/json'},
+      body: jsonEncode({
+        'name': name.trim(),
+        'email': email.trim().toLowerCase(),
+        'password': password,
+      }),
+    );
+
+    final data = _decodeResponse(response);
+    return {
+      'id': (data['id'] ?? '').toString(),
+      'name': (data['name'] ?? name.trim()).toString(),
+      'email': (data['email'] ?? email.trim().toLowerCase()).toString(),
+    };
   }
 
-  // TODO: Kirim MultipartFile ke endpoint upload Django Person 1.
-  Future<DocumentModel> uploadDocument({required String path, required String documentType}) async => DocumentModel(
-    fileName: path.split(RegExp(r'[/\\]')).last,
-    documentType: documentType,
-    uploadDate: DateTime.now().toIso8601String(),
-    status: 'processing',
-  );
+  /// Mengunggah dokumen ke backend Django.
+  Future<DocumentModel> uploadDocument({
+    required String fileName,
+    required List<int> bytes,
+    required String documentType,
+  }) async {
+    final token = AuthService.instance.accessToken;
 
-  // TODO: Ganti mock ini dengan GET /documents/{id}/result/.
-  Future<AuditResult> getDocumentResult(int documentId) async => AuditResult.demo;
+    if (token == null || token.isEmpty) {
+      throw const ApiException(
+        'Silakan login kembali sebelum mengunggah dokumen.',
+      );
+    }
 
-  // TODO: Ganti dummy list dengan GET history dari REST API.
-  Future<List<DocumentModel>> getDocumentHistory() async => DocumentModel.history;
+    final backendType = switch (documentType) {
+      'skripsi' || 'thesis' => 'skripsi',
+      'proposal' => 'proposal',
+      _ => 'laporan',
+    };
 
-  // TODO: Hubungkan ke GET /profile/ milik backend Person 1.
+    final request = http.MultipartRequest(
+      'POST',
+      Uri.parse('$baseUrl/api/v1/documents/upload/'),
+    );
+
+    request.headers['Authorization'] = 'Bearer $token';
+    request.fields['title'] = fileName;
+    request.fields['document_type'] = backendType;
+
+    request.files.add(
+      http.MultipartFile.fromBytes(
+        'file',
+        bytes,
+        filename: fileName,
+      ),
+    );
+
+    final streamedResponse = await request.send();
+    final response = await http.Response.fromStream(streamedResponse);
+    final data = _decodeResponse(response);
+
+    final rawDocument = data['document'];
+
+    if (rawDocument is! Map<String, dynamic>) {
+      throw const ApiException(
+        'Backend tidak mengirim data dokumen yang diharapkan.',
+      );
+    }
+
+    final jalurA = data['jalur_a'] is Map
+        ? Map<String, dynamic>.from(data['jalur_a'] as Map)
+        : <String, dynamic>{};
+
+    final summaryA = jalurA['summary'] is Map
+        ? Map<String, dynamic>.from(jalurA['summary'] as Map)
+        : <String, dynamic>{};
+
+    return DocumentModel(
+      id: int.tryParse('${rawDocument['id'] ?? ''}'),
+      fileName: fileName,
+      documentType: backendType,
+      uploadDate:
+          '${rawDocument['uploaded_at'] ?? DateTime.now().toIso8601String()}',
+      status: '${rawDocument['status'] ?? 'uploaded'}',
+      sizeBytes: bytes.length,
+      findingsCount: (summaryA['total'] as num?)?.toInt() ?? 0,
+    );
+  }
+
+  Future<AuditResult> getDocumentResult(int documentId) async =>
+      AuditResult.demo;
+
+  Future<List<DocumentModel>> getDocumentHistory() async =>
+      DocumentModel.history;
+
   Future<Map<String, dynamic>> getProfile() async =>
       AuthService.instance.currentUser?.toJson() ?? <String, dynamic>{};
+
+  Map<String, dynamic> _decodeResponse(http.Response response) {
+    dynamic decoded;
+    try {
+      decoded = response.body.isEmpty ? <String, dynamic>{} : jsonDecode(response.body);
+    } on FormatException {
+      throw ApiException(
+        'Respons backend tidak valid (HTTP ${response.statusCode}).',
+      );
+    }
+
+    if (response.statusCode >= 200 && response.statusCode < 300) {
+      if (decoded is Map<String, dynamic>) return decoded;
+      throw const ApiException('Format respons backend tidak sesuai.');
+    }
+
+    throw ApiException(_extractError(decoded, response.statusCode));
+  }
+
+  String _extractError(dynamic body, int statusCode) {
+    if (body is Map<String, dynamic>) {
+      final detail = body['detail'];
+      if (detail != null) return detail.toString();
+
+      final messages = <String>[];
+      body.forEach((key, value) {
+        if (value is List) {
+          messages.add('$key: ${value.join(' ')}');
+        } else if (value is Map) {
+          messages.add('$key: ${value.values.join(' ')}');
+        } else {
+          messages.add('$key: $value');
+        }
+      });
+      if (messages.isNotEmpty) return messages.join('\n');
+    }
+    if (statusCode == 401) return 'Email atau password salah.';
+    return 'Permintaan gagal (HTTP $statusCode).';
+  }
+}
+
+class ApiException implements Exception {
+  const ApiException(this.message);
+  final String message;
+
+  @override
+  String toString() => message;
 }
