@@ -89,7 +89,6 @@ class _UploadScreenState extends State<UploadScreen> {
 
                   if (!mounted) return;
 
-                  ThesisDocument.addToHistory(doc);
 
                   Navigator.of(context).push(
                     MaterialPageRoute<void>(

@@ -1,5 +1,7 @@
+
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
 import '../models/audit_result.dart';
@@ -8,8 +10,6 @@ import '../models/user_model.dart';
 import 'auth_service.dart';
 
 /// API client untuk backend Django.
-/// Untuk Flutter Web di komputer yang sama, gunakan 127.0.0.1:8000.
-/// Bisa diganti saat menjalankan Flutter dengan --dart-define=API_BASE_URL=...
 class ApiService {
   const ApiService();
 
@@ -26,8 +26,6 @@ class ApiService {
       Uri.parse('$baseUrl/api/token/'),
       headers: const {'Content-Type': 'application/json'},
       body: jsonEncode({
-        // Backend token endpoint menggunakan field "username".
-        // Backend kita akan membuat username sama dengan email.
         'username': email.trim().toLowerCase(),
         'password': password,
       }),
@@ -35,6 +33,7 @@ class ApiService {
 
     final data = _decodeResponse(response);
     final userJson = data['user'];
+
     if (userJson is! Map<String, dynamic>) {
       throw const ApiException(
         'Login berhasil tetapi data pengguna tidak dikirim oleh backend.',
@@ -44,14 +43,17 @@ class ApiService {
     final user = UserModel.fromJson(userJson);
     final access = data['access']?.toString();
     final refresh = data['refresh']?.toString();
+
     if (access == null || access.isEmpty) {
-      throw const ApiException('Token akses tidak ditemukan dari backend.');
+      throw const ApiException(
+        'Token akses tidak ditemukan dari backend.',
+      );
     }
 
     AuthService.instance.setSession(
       user: user,
       accessToken: access,
-      refreshToken: refresh,
+      refreshToken: data['refresh']?.toString(),
     );
 
     return {
@@ -76,6 +78,7 @@ class ApiService {
     );
 
     final data = _decodeResponse(response);
+
     return {
       'id': (data['id'] ?? '').toString(),
       'name': (data['name'] ?? name.trim()).toString(),
@@ -140,31 +143,98 @@ class ApiService {
         ? Map<String, dynamic>.from(jalurA['summary'] as Map)
         : <String, dynamic>{};
 
+    final jalurB = data['jalur_b'] is Map
+        ? Map<String, dynamic>.from(data['jalur_b'] as Map)
+        : <String, dynamic>{};
+
+    final summaryB = jalurB['summary'] is Map
+        ? Map<String, dynamic>.from(jalurB['summary'] as Map)
+        : <String, dynamic>{};
+
     return DocumentModel(
       id: int.tryParse('${rawDocument['id'] ?? ''}'),
-      fileName: fileName,
-      documentType: backendType,
+      fileName:
+          '${rawDocument['title'] ?? rawDocument['file_name'] ?? fileName}',
+      documentType: '${rawDocument['document_type'] ?? backendType}',
       uploadDate:
           '${rawDocument['uploaded_at'] ?? DateTime.now().toIso8601String()}',
       status: '${rawDocument['status'] ?? 'uploaded'}',
       sizeBytes: bytes.length,
-      findingsCount: (summaryA['total'] as num?)?.toInt() ?? 0,
+      findingsCount:
+          ((summaryA['total'] as num?)?.toInt() ?? 0) +
+          ((summaryB['total'] as num?)?.toInt() ?? 0),
     );
   }
 
-  Future<AuditResult> getDocumentResult(int documentId) async =>
-      AuditResult.demo;
+  /// Mengambil hasil pemeriksaan.
+  /// Belum terhubung ke endpoint detail hasil Django.
+  Future<AuditResult> getDocumentResult(int documentId) async {
+    return AuditResult.demo;
+  }
 
-  Future<List<DocumentModel>> getDocumentHistory() async =>
-      DocumentModel.history;
+  /// Mengambil riwayat dokumen dari Django.
+  Future<List<DocumentModel>> getDocumentHistory() async {
+    final token = AuthService.instance.accessToken;
 
-  Future<Map<String, dynamic>> getProfile() async =>
-      AuthService.instance.currentUser?.toJson() ?? <String, dynamic>{};
+    if (token == null || token.isEmpty) {
+      debugPrint('HISTORY ERROR: Token akses tidak ditemukan.');
+
+      throw const ApiException(
+        'Silakan login kembali untuk melihat riwayat dokumen.',
+      );
+    }
+
+    final uri = Uri.parse('$baseUrl/api/v1/documents/history/');
+
+    debugPrint('HISTORY URL: $uri');
+
+    final response = await http.get(
+      uri,
+      headers: {
+        'Authorization': 'Bearer $token',
+        'Accept': 'application/json',
+      },
+    );
+
+    // DEBUG: periksa respons yang dikirim Django.
+    debugPrint('HISTORY STATUS: ${response.statusCode}');
+    debugPrint('HISTORY BODY: ${response.body}');
+
+    final data = _decodeResponse(response);
+    final rawDocuments = data['documents'] ?? data['results'];
+
+    if (rawDocuments is! List) {
+      throw const ApiException(
+        'Format data riwayat dari backend tidak sesuai.',
+      );
+    }
+
+    final documents = rawDocuments
+        .whereType<Map>()
+        .map(
+          (item) => DocumentModel.fromJson(
+            Map<String, dynamic>.from(item),
+          ),
+        )
+        .toList();
+
+    debugPrint('HISTORY JUMLAH DOKUMEN: ${documents.length}');
+
+    return documents;
+  }
+
+  Future<Map<String, dynamic>> getProfile() async {
+    return AuthService.instance.currentUser?.toJson() ??
+        <String, dynamic>{};
+  }
 
   Map<String, dynamic> _decodeResponse(http.Response response) {
     dynamic decoded;
+
     try {
-      decoded = response.body.isEmpty ? <String, dynamic>{} : jsonDecode(response.body);
+      decoded = response.body.isEmpty
+          ? <String, dynamic>{}
+          : jsonDecode(response.body);
     } on FormatException {
       throw ApiException(
         'Respons backend tidak valid (HTTP ${response.statusCode}).',
@@ -172,19 +242,30 @@ class ApiService {
     }
 
     if (response.statusCode >= 200 && response.statusCode < 300) {
-      if (decoded is Map<String, dynamic>) return decoded;
-      throw const ApiException('Format respons backend tidak sesuai.');
+      if (decoded is Map<String, dynamic>) {
+        return decoded;
+      }
+
+      throw const ApiException(
+        'Format respons backend tidak sesuai.',
+      );
     }
 
-    throw ApiException(_extractError(decoded, response.statusCode));
+    throw ApiException(
+      _extractError(decoded, response.statusCode),
+    );
   }
 
   String _extractError(dynamic body, int statusCode) {
     if (body is Map<String, dynamic>) {
       final detail = body['detail'];
-      if (detail != null) return detail.toString();
+
+      if (detail != null) {
+        return detail.toString();
+      }
 
       final messages = <String>[];
+
       body.forEach((key, value) {
         if (value is List) {
           messages.add('$key: ${value.join(' ')}');
@@ -194,15 +275,27 @@ class ApiService {
           messages.add('$key: $value');
         }
       });
-      if (messages.isNotEmpty) return messages.join('\n');
+
+      if (messages.isNotEmpty) {
+        return messages.join('\n');
+      }
     }
-    if (statusCode == 401) return 'Email atau password salah.';
+
+    if (statusCode == 401) {
+      return 'Sesi login berakhir atau token tidak valid. Silakan login kembali.';
+    }
+
+    if (statusCode == 403) {
+      return 'Akses ditolak oleh backend (HTTP 403).';
+    }
+
     return 'Permintaan gagal (HTTP $statusCode).';
   }
 }
 
 class ApiException implements Exception {
   const ApiException(this.message);
+
   final String message;
 
   @override
