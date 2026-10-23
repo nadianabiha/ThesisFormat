@@ -70,7 +70,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
   Widget build(BuildContext context) {
     final query = _search.text.trim().toLowerCase();
 
-    final heading = const Padding(
+    final heading = Padding(
       padding: EdgeInsets.fromLTRB(20, 24, 20, 0),
       child: Align(
         alignment: Alignment.centerLeft,
@@ -85,11 +85,11 @@ class _HistoryScreenState extends State<HistoryScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         if (!widget.embedded)
-          const Padding(
+          Padding(
             padding: EdgeInsets.fromLTRB(20, 8, 20, 0),
             child: Text(
               'Find your previous document reviews.',
-              style: TextStyle(color: AppColors.textSecondary),
+              style: TextStyle(color: context.appColors.textSecondary),
             ),
           ),
         Padding(
@@ -115,7 +115,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                 label: Text(
                   filter,
                   style: TextStyle(
-                    color: selected ? Colors.white : AppColors.textPrimary,
+                    color: selected ? context.appColors.primaryExtraDark : context.appColors.textPrimary,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
@@ -131,7 +131,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
             future: _historyFuture,
             builder: (context, snapshot) {
               if (snapshot.connectionState == ConnectionState.waiting) {
-                return const Center(
+                return Center(
                   child: CircularProgressIndicator(),
                 );
               }
@@ -143,13 +143,13 @@ class _HistoryScreenState extends State<HistoryScreen> {
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Icon(
+                        Icon(
                           Icons.cloud_off_outlined,
                           size: 42,
-                          color: AppColors.textSecondary,
+                          color: context.appColors.textSecondary,
                         ),
                         const SizedBox(height: 12),
-                        const Text(
+                        Text(
                           'Gagal memuat riwayat dari server.',
                           textAlign: TextAlign.center,
                         ),
@@ -157,8 +157,8 @@ class _HistoryScreenState extends State<HistoryScreen> {
                         Text(
                           '${snapshot.error}',
                           textAlign: TextAlign.center,
-                          style: const TextStyle(
-                            color: AppColors.textSecondary,
+                          style: TextStyle(
+                            color: context.appColors.textSecondary,
                             fontSize: 12,
                           ),
                         ),
@@ -167,7 +167,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                           onPressed: () {
                             setState(_loadHistory);
                           },
-                          child: const Text('Coba lagi'),
+                          child: Text('Coba lagi'),
                         ),
                       ],
                     ),
@@ -190,10 +190,10 @@ class _HistoryScreenState extends State<HistoryScreen> {
                   child: ListView(
                     physics: const AlwaysScrollableScrollPhysics(),
                     padding: const EdgeInsets.only(top: 50),
-                    children: const [
+                    children: [
                       Icon(
                         Icons.history_rounded,
-                        color: AppColors.textSecondary,
+                        color: context.appColors.textSecondary,
                         size: 40,
                       ),
                       SizedBox(height: 12),
@@ -201,7 +201,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                         child: Text(
                           'Belum ada dokumen yang ditemukan.',
                           style: TextStyle(
-                            color: AppColors.textSecondary,
+                            color: context.appColors.textSecondary,
                           ),
                         ),
                       ),
@@ -218,8 +218,8 @@ class _HistoryScreenState extends State<HistoryScreen> {
                   children: [
                     Text(
                       '${documents.length} documents',
-                      style: const TextStyle(
-                        color: AppColors.textSecondary,
+                      style: TextStyle(
+                        color: context.appColors.textSecondary,
                         fontSize: 12,
                       ),
                     ),
@@ -259,7 +259,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
     }
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Document History')),
+      appBar: AppBar(title: Text('Document History')),
       body: SafeArea(child: content),
     );
   }

@@ -1,4 +1,3 @@
-
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
@@ -42,7 +41,6 @@ class ApiService {
 
     final user = UserModel.fromJson(userJson);
     final access = data['access']?.toString();
-    final refresh = data['refresh']?.toString();
 
     if (access == null || access.isEmpty) {
       throw const ApiException(

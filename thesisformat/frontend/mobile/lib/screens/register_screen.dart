@@ -59,11 +59,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
     body: SafeArea(child: Center(child: SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
       child: ConstrainedBox(constraints: const BoxConstraints(maxWidth: 430), child: Form(key: _formKey, child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-        Center(child: Container(width: 60, height: 60, decoration: BoxDecoration(color: AppColors.primarySoft, borderRadius: BorderRadius.circular(19)), child: const Icon(Icons.person_add_alt_1_rounded, color: AppColors.primaryDark, size: 30))),
+        Center(child: Container(width: 60, height: 60, decoration: BoxDecoration(color: context.appColors.primarySoft, borderRadius: BorderRadius.circular(19)), child: Icon(Icons.person_add_alt_1_rounded, color: context.appColors.primaryDark, size: 30))),
         const SizedBox(height: 17),
-        const Text('Create an account', textAlign: TextAlign.center, style: TextStyle(color: AppColors.textPrimary, fontSize: 25, fontWeight: FontWeight.w800)),
+        Text('Create an account', textAlign: TextAlign.center, style: TextStyle(color: context.appColors.textPrimary, fontSize: 25, fontWeight: FontWeight.w800)),
         const SizedBox(height: 6),
-        const Text('Sign up to start organizing your academic documents.', textAlign: TextAlign.center, style: TextStyle(color: AppColors.textSecondary)),
+        Text('Sign up to start organizing your academic documents.', textAlign: TextAlign.center, style: TextStyle(color: context.appColors.textSecondary)),
         const SizedBox(height: 27),
         const Text('Full name', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
         const SizedBox(height: 7),
@@ -84,10 +84,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
         ElevatedButton(onPressed: _submitting ? null : _register, child: Text(_submitting ? 'Creating account...' : 'Sign up')),
         const SizedBox(height: 12),
         Center(child: Wrap(alignment: WrapAlignment.center, crossAxisAlignment: WrapCrossAlignment.center, children: [
-          const Text('Already have an account?', style: TextStyle(color: AppColors.textSecondary, fontSize: 13)),
+          Text('Already have an account?', style: TextStyle(color: context.appColors.textSecondary, fontSize: 13)),
           TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('Sign in')),
         ])),
-        const Center(child: Text('Your account will be saved securely by the backend.', textAlign: TextAlign.center, style: TextStyle(color: AppColors.textSecondary, fontSize: 11))),
+Center(child: Text('Your account will be saved securely by the backend.', textAlign: TextAlign.center, style: TextStyle(color: context.appColors.textSecondary, fontSize: 11))),
       ]))),
     ))),
   );
