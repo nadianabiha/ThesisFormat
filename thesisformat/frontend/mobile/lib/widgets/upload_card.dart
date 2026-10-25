@@ -16,22 +16,22 @@ class UploadCard extends StatelessWidget {
   Widget build(BuildContext context) {
     if (file == null) {
       return Card(child: Padding(padding: const EdgeInsets.all(22), child: Column(children: [
-        Container(width: 58, height: 58, decoration: const BoxDecoration(color: AppColors.primarySoft, shape: BoxShape.circle), child: const Icon(Icons.cloud_upload_outlined, color: AppColors.primaryDark, size: 29)),
+        Container(width: 58, height: 58, decoration: BoxDecoration(color: context.appColors.primarySoft, shape: BoxShape.circle), child: Icon(Icons.cloud_upload_outlined, color: context.appColors.primaryDark, size: 29)),
         const SizedBox(height: 14),
         const Text('Choose a PDF or DOCX file', style: TextStyle(fontWeight: FontWeight.w700)),
         const SizedBox(height: 5),
-        const Text('Maximum 20 MB', style: TextStyle(color: AppColors.textSecondary, fontSize: 12)),
+        Text('Maximum 20 MB', style: TextStyle(color: context.appColors.textSecondary, fontSize: 12)),
         const SizedBox(height: 17),
         OutlinedButton.icon(onPressed: onPick, icon: const Icon(Icons.attach_file_rounded), label: const Text('Choose file')),
       ])));
     }
     return Card(child: Padding(padding: const EdgeInsets.all(14), child: Row(children: [
-      Container(width: 42, height: 42, decoration: const BoxDecoration(color: AppColors.successBackground, shape: BoxShape.circle), child: const Icon(Icons.check_circle_outline_rounded, color: AppColors.success)),
+      Container(width: 42, height: 42, decoration: BoxDecoration(color: context.appColors.successBackground, shape: BoxShape.circle), child: Icon(Icons.check_circle_outline_rounded, color: context.appColors.success)),
       const SizedBox(width: 11),
       Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Text(file!.name, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w700)),
         const SizedBox(height: 4),
-        Text('${file!.extension!.toUpperCase()} · ${_size(file!.size)}', style: const TextStyle(color: AppColors.textSecondary, fontSize: 11)),
+        Text('${file!.extension!.toUpperCase()} · ${_size(file!.size)}', style: TextStyle(color: context.appColors.textSecondary, fontSize: 11)),
       ])),
       IconButton(tooltip: 'Replace file', onPressed: onPick, icon: const Icon(Icons.swap_horiz_rounded)),
       IconButton(tooltip: 'Remove file', onPressed: onRemove, icon: const Icon(Icons.close_rounded)),
