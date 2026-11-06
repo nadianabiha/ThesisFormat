@@ -30,17 +30,14 @@ class DocumentModel {
 
   String get displayDocumentType {
     switch (documentType.toLowerCase()) {
-      case 'skripsi':
-      case 'thesis':
-        return 'Thesis';
-      case 'proposal':
-        return 'Proposal';
-      case 'karya_tulis_ilmiah':
-      case 'research paper':
-        return 'Research Paper';
-      case 'laporan_penelitian':
-      case 'research report':
-        return 'Research Report';
+      case 'laporan_ta':
+        return 'Tugas Akhir';
+      case 'proposal_ta':
+        return 'Proposal TA';
+      case 'pkl':
+        return 'PKL/Magang';
+      case 'praktik':
+        return 'Praktik';
       default:
         return documentType;
     }
@@ -87,12 +84,14 @@ class DocumentModel {
         ''
       ).toString(),
 
-      uploadDate: (
-        json['upload_date'] ??
-        json['uploadDate'] ??
-        json['uploaded_at'] ??
-        ''
-      ).toString(),
+      uploadDate: _formatDate(
+        (
+          json['upload_date'] ??
+          json['uploadDate'] ??
+          json['uploaded_at'] ??
+          ''
+        ).toString(),
+      ),
 
       status: (json['status'] ?? 'processing').toString(),
 
@@ -106,10 +105,22 @@ class DocumentModel {
       sizeBytes:
           (json['size_bytes'] as num?)?.toInt() ?? 0,
 
-      result: rawResult is Map<String, dynamic>
-          ? AuditResult.fromJson(rawResult)
+      result: rawResult is Map
+          ? AuditResult.fromJson(Map<String, dynamic>.from(rawResult))
           : null,
     );
+  }
+
+  static String _formatDate(String raw) {
+    final parsed = DateTime.tryParse(raw)?.toLocal();
+    if (parsed == null) return raw;
+
+    const months = [
+      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+    ];
+
+    return '${months[parsed.month - 1]} ${parsed.day}, ${parsed.year}';
   }
 
   Map<String, dynamic> toJson() => {

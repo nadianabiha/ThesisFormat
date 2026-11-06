@@ -9,27 +9,38 @@ class DocumentCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final statusColor = document.score >= 90 ? AppColors.success : document.score >= 75 ? AppColors.info : AppColors.warning;
-    final statusBackground = document.score >= 90 ? AppColors.successBackground : document.score >= 75 ? AppColors.infoBackground : AppColors.warningBackground;
+    final statusColor = document.score >= 90 ? context.appColors.success : document.score >= 75 ? context.appColors.purple : context.appColors.warning;
+    final statusBackground = document.score >= 90 ? context.appColors.successBackground : document.score >= 75 ? context.appColors.purpleSoft : context.appColors.warningBackground;
+    final documentType = document.displayDocumentType.toLowerCase();
+    final iconColor = documentType == 'proposal'
+        ? context.appColors.purple
+        : documentType == 'thesis'
+            ? context.appColors.warning
+            : context.appColors.success;
+    final iconBackground = documentType == 'proposal'
+        ? context.appColors.purpleSoft
+        : documentType == 'thesis'
+            ? context.appColors.warningBackground
+            : context.appColors.successBackground;
     return Card(child: InkWell(
       borderRadius: BorderRadius.circular(16),
       onTap: onTap,
       child: Padding(padding: const EdgeInsets.all(15), child: Row(children: [
-        Container(width: 42, height: 42, decoration: BoxDecoration(color: AppColors.primaryLight, borderRadius: BorderRadius.circular(13)), child: const Icon(Icons.description_outlined, color: AppColors.primaryExtraDark)),
+        Container(width: 42, height: 42, decoration: BoxDecoration(color: iconBackground, borderRadius: BorderRadius.circular(13)), child: Icon(Icons.description_outlined, color: iconColor)),
         const SizedBox(width: 12),
         Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Text(document.fileName, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700)),
           const SizedBox(height: 4),
-          Text('${document.displayDocumentType} · ${document.uploadDate}', style: const TextStyle(color: AppColors.textSecondary, fontSize: 11)),
+          Text('${document.displayDocumentType} · ${document.uploadDate}', style: TextStyle(color: context.appColors.textSecondary, fontSize: 11)),
           const SizedBox(height: 7),
           Container(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4), decoration: BoxDecoration(color: statusBackground, borderRadius: BorderRadius.circular(8)), child: Text(document.displayStatus, style: TextStyle(color: statusColor, fontSize: 10, fontWeight: FontWeight.w700))),
         ])),
         const SizedBox(width: 8),
         Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
-          Text(document.score.toString(), style: const TextStyle(color: AppColors.textPrimary, fontSize: 21, fontWeight: FontWeight.w800)),
-          const Text('SCORE', style: TextStyle(color: AppColors.textSecondary, fontSize: 9, letterSpacing: .7)),
+          Text(document.score.toString(), style: TextStyle(color: statusColor, fontSize: 21, fontWeight: FontWeight.w800)),
+          Text('SCORE', style: TextStyle(color: context.appColors.textSecondary, fontSize: 9, letterSpacing: .7)),
         ]),
-        const Icon(Icons.chevron_right_rounded, color: AppColors.textSecondary),
+        Icon(Icons.chevron_right_rounded, color: context.appColors.textSecondary),
       ])),
     ));
   }

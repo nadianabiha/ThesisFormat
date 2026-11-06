@@ -1,4 +1,3 @@
-
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
@@ -42,7 +41,6 @@ class ApiService {
 
     final user = UserModel.fromJson(userJson);
     final access = data['access']?.toString();
-    final refresh = data['refresh']?.toString();
 
     if (access == null || access.isEmpty) {
       throw const ApiException(
@@ -86,7 +84,7 @@ class ApiService {
     };
   }
 
-  /// Mengunggah dokumen ke backend Django.
+  /// Mengunggah dokumen ke backend Django dan menyimpan hasil pemeriksaan.
   Future<DocumentModel> uploadDocument({
     required String fileName,
     required List<int> bytes,
@@ -135,41 +133,54 @@ class ApiService {
       );
     }
 
-    final jalurA = data['jalur_a'] is Map
-        ? Map<String, dynamic>.from(data['jalur_a'] as Map)
-        : <String, dynamic>{};
+    // Skor dan temuan dihitung oleh backend (lihat scoring.py).
+    // Flutter hanya menampilkan hasilnya.
+    final rawResult = data['result'] ?? rawDocument['result'];
 
-    final summaryA = jalurA['summary'] is Map
-        ? Map<String, dynamic>.from(jalurA['summary'] as Map)
-        : <String, dynamic>{};
+    if (rawResult is! Map) {
+      throw const ApiException(
+        'Backend tidak mengirim hasil pemeriksaan (field "result").',
+      );
+    }
 
-    final jalurB = data['jalur_b'] is Map
-        ? Map<String, dynamic>.from(data['jalur_b'] as Map)
-        : <String, dynamic>{};
-
-    final summaryB = jalurB['summary'] is Map
-        ? Map<String, dynamic>.from(jalurB['summary'] as Map)
-        : <String, dynamic>{};
-
-    return DocumentModel(
-      id: int.tryParse('${rawDocument['id'] ?? ''}'),
-      fileName:
-          '${rawDocument['title'] ?? rawDocument['file_name'] ?? fileName}',
-      documentType: '${rawDocument['document_type'] ?? backendType}',
-      uploadDate:
-          '${rawDocument['uploaded_at'] ?? DateTime.now().toIso8601String()}',
-      status: '${rawDocument['status'] ?? 'uploaded'}',
-      sizeBytes: bytes.length,
-      findingsCount:
-          ((summaryA['total'] as num?)?.toInt() ?? 0) +
-          ((summaryB['total'] as num?)?.toInt() ?? 0),
+    final result = AuditResult.fromJson(
+      Map<String, dynamic>.from(rawResult),
     );
+
+    debugPrint(
+      'SKOR: total=${result.totalScore} format=${result.formatScore} '
+      'semantik=${result.semanticScore} temuan=${result.findings.length}',
+    );
+
+    final document = DocumentModel.fromJson({
+      ...rawDocument,
+      'result': Map<String, dynamic>.from(rawResult),
+      'score': result.totalScore,
+      'size_bytes': bytes.length,
+    });
+
+    return document;
   }
 
-  /// Mengambil hasil pemeriksaan.
-  /// Belum terhubung ke endpoint detail hasil Django.
+  /// Mengambil hasil pemeriksaan satu dokumen dari Django.
   Future<AuditResult> getDocumentResult(int documentId) async {
-    return AuditResult.demo;
+    final token = AuthService.instance.accessToken;
+
+    if (token == null || token.isEmpty) {
+      throw const ApiException(
+        'Silakan login kembali untuk melihat hasil dokumen.',
+      );
+    }
+
+    final response = await http.get(
+      Uri.parse('$baseUrl/api/v1/documents/$documentId/result/'),
+      headers: {
+        'Authorization': 'Bearer $token',
+        'Accept': 'application/json',
+      },
+    );
+
+    return AuditResult.fromJson(_decodeResponse(response));
   }
 
   /// Mengambil riwayat dokumen dari Django.
@@ -196,7 +207,6 @@ class ApiService {
       },
     );
 
-    // DEBUG: periksa respons yang dikirim Django.
     debugPrint('HISTORY STATUS: ${response.statusCode}');
     debugPrint('HISTORY BODY: ${response.body}');
 
@@ -219,6 +229,12 @@ class ApiService {
         .toList();
 
     debugPrint('HISTORY JUMLAH DOKUMEN: ${documents.length}');
+
+    for (final document in documents) {
+      debugPrint(
+        'HISTORY DOCUMENT: ${document.fileName}, SCORE: ${document.score}',
+      );
+    }
 
     return documents;
   }

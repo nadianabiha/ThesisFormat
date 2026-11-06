@@ -30,21 +30,21 @@ class _ProcessingScreenState extends State<ProcessingScreen> {
     const labels = ['Document uploaded', 'Reading document format', 'Reviewing structure and content', 'Preparing the score', 'Preparing your results'];
     return Scaffold(appBar: AppBar(title: const Text('Review')), body: Center(child: SingleChildScrollView(padding: const EdgeInsets.all(24), child: ConstrainedBox(constraints: const BoxConstraints(maxWidth: 460), child: Column(children: [
       const SizedBox(height: 30),
-      SizedBox(width: 84, height: 84, child: CircularProgressIndicator(value: _stage == 5 ? 1 : null, strokeWidth: 7, backgroundColor: AppColors.secondaryLight)),
+      SizedBox(width: 84, height: 84, child: CircularProgressIndicator(value: _stage == 5 ? 1 : null, strokeWidth: 7, backgroundColor: context.appColors.secondaryLight)),
       const SizedBox(height: 28),
-      const Text('Reviewing your document', textAlign: TextAlign.center, style: TextStyle(color: AppColors.textPrimary, fontSize: 22, fontWeight: FontWeight.w800)),
+      Text('Reviewing your document', textAlign: TextAlign.center, style: TextStyle(color: context.appColors.textPrimary, fontSize: 22, fontWeight: FontWeight.w800)),
       const SizedBox(height: 8),
-      const Text('This may take a few moments.', textAlign: TextAlign.center, style: TextStyle(color: AppColors.textSecondary)),
+      Text('This may take a few moments.', textAlign: TextAlign.center, style: TextStyle(color: context.appColors.textSecondary)),
       const SizedBox(height: 12),
-      Text(widget.document.name, textAlign: TextAlign.center, style: const TextStyle(color: AppColors.primaryExtraDark, fontWeight: FontWeight.w600)),
+      Text(widget.document.name, textAlign: TextAlign.center, style: TextStyle(color: context.appColors.primaryExtraDark, fontWeight: FontWeight.w600)),
       const SizedBox(height: 30),
       Card(child: Padding(padding: const EdgeInsets.all(16), child: Column(children: List.generate(labels.length, (i) {
         final done = i < _stage;
         final active = i == _stage && _stage < labels.length;
         return Padding(padding: const EdgeInsets.symmetric(vertical: 10), child: Row(children: [
-          Icon(done ? Icons.check_circle_rounded : active ? Icons.radio_button_checked_rounded : Icons.circle_outlined, color: done ? AppColors.success : active ? AppColors.secondary : AppColors.border, size: 20),
+          Icon(done ? Icons.check_circle_rounded : active ? Icons.radio_button_checked_rounded : Icons.circle_outlined, color: done ? context.appColors.success : active ? context.appColors.secondary : context.appColors.border, size: 20),
           const SizedBox(width: 11),
-          Expanded(child: Text(labels[i], style: TextStyle(color: done || active ? AppColors.textPrimary : AppColors.textSecondary, fontWeight: active ? FontWeight.w600 : FontWeight.w400))),
+          Expanded(child: Text(labels[i], style: TextStyle(color: done || active ? context.appColors.textPrimary : context.appColors.textSecondary, fontWeight: active ? FontWeight.w600 : FontWeight.w400))),
         ]));
       })))),
     ])))));

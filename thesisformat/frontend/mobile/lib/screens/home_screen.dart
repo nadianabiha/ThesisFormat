@@ -137,7 +137,7 @@ class _DashboardState extends State<_Dashboard> {
 
       if (documents.isEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
+          SnackBar(
             content: Text('Belum ada dokumen yang diunggah.'),
           ),
         );
@@ -176,23 +176,23 @@ class _DashboardState extends State<_Dashboard> {
                 width: 44,
                 height: 44,
                 decoration: BoxDecoration(
-                  color: AppColors.primarySoft,
+                  color: context.appColors.primarySoft,
                   borderRadius: BorderRadius.circular(14),
                 ),
-                child: const Icon(
+                child: Icon(
                   Icons.auto_stories_rounded,
-                  color: AppColors.primaryDark,
+                  color: context.appColors.primaryDark,
                 ),
               ),
               const SizedBox(width: 12),
-              const Expanded(
+              Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
                       'ThesisFormat',
                       style: TextStyle(
-                        color: AppColors.textPrimary,
+                        color: context.appColors.textPrimary,
                         fontWeight: FontWeight.w800,
                         fontSize: 17,
                       ),
@@ -200,7 +200,7 @@ class _DashboardState extends State<_Dashboard> {
                     Text(
                       'Academic writing assistant',
                       style: TextStyle(
-                        color: AppColors.textSecondary,
+                        color: context.appColors.textSecondary,
                         fontSize: 11,
                       ),
                     ),
@@ -210,12 +210,12 @@ class _DashboardState extends State<_Dashboard> {
               IconButton(
                 onPressed: () {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
+                    SnackBar(
                       content: Text('You have no new notifications.'),
                     ),
                   );
                 },
-                icon: const Icon(Icons.notifications_none_rounded),
+                icon: Icon(Icons.notifications_none_rounded),
               ),
             ],
           ),
@@ -226,8 +226,8 @@ class _DashboardState extends State<_Dashboard> {
             widget.welcomeName.isEmpty
                 ? 'Welcome'
                 : 'Welcome, ${widget.welcomeName}',
-            style: const TextStyle(
-              color: AppColors.textPrimary,
+            style: TextStyle(
+              color: context.appColors.textPrimary,
               fontSize: 24,
               fontWeight: FontWeight.w800,
               letterSpacing: -.4,
@@ -236,10 +236,10 @@ class _DashboardState extends State<_Dashboard> {
 
           const SizedBox(height: 7),
 
-          const Text(
+          Text(
             'Review your document before your next advising session.',
             style: TextStyle(
-              color: AppColors.textSecondary,
+              color: context.appColors.textSecondary,
               fontSize: 14,
             ),
           ),
@@ -247,7 +247,7 @@ class _DashboardState extends State<_Dashboard> {
           const SizedBox(height: 23),
 
           Material(
-            color: AppColors.primary,
+            color: context.appColors.primarySoft,
             borderRadius: BorderRadius.circular(20),
             child: InkWell(
               borderRadius: BorderRadius.circular(20),
@@ -260,19 +260,19 @@ class _DashboardState extends State<_Dashboard> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text(
+                          Text(
                             'Review a New Document',
                             style: TextStyle(
-                              color: AppColors.textPrimary,
+                              color: context.appColors.textPrimary,
                               fontSize: 18,
                               fontWeight: FontWeight.w800,
                             ),
                           ),
                           const SizedBox(height: 6),
-                          const Text(
+                          Text(
                             'Upload a PDF or DOCX to get a formatting summary.',
                             style: TextStyle(
-                              color: AppColors.textPrimary,
+                              color: context.appColors.textPrimary,
                               height: 1.45,
                               fontSize: 12,
                             ),
@@ -284,16 +284,16 @@ class _DashboardState extends State<_Dashboard> {
                               vertical: 9,
                             ),
                             decoration: BoxDecoration(
-                              color: AppColors.primaryExtraDark,
+                              color: context.appColors.primaryDark,
                               borderRadius: BorderRadius.circular(11),
                             ),
-                            child: const Row(
+                            child: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
                                 Text(
                                   'Start review',
                                   style: TextStyle(
-                                    color: Colors.white,
+                                    color: context.appColors.textPrimary,
                                     fontWeight: FontWeight.w700,
                                     fontSize: 12,
                                   ),
@@ -315,12 +315,12 @@ class _DashboardState extends State<_Dashboard> {
                       width: 56,
                       height: 56,
                       decoration: BoxDecoration(
-                        color: AppColors.primaryDark.withValues(alpha: .10),
+                        color: context.appColors.primaryDark.withValues(alpha: .10),
                         borderRadius: BorderRadius.circular(18),
                       ),
-                      child: const Icon(
+                      child: Icon(
                         Icons.upload_file_rounded,
-                        color: AppColors.primaryDark,
+                        color: context.appColors.primaryDark,
                         size: 30,
                       ),
                     ),
@@ -344,7 +344,7 @@ class _DashboardState extends State<_Dashboard> {
             future: _historyFuture,
             builder: (context, snapshot) {
               if (snapshot.connectionState == ConnectionState.waiting) {
-                return const Card(
+                return Card(
                   child: Padding(
                     padding: EdgeInsets.all(24),
                     child: Center(
@@ -391,7 +391,7 @@ class _DashboardState extends State<_Dashboard> {
             future: _historyFuture,
             builder: (context, snapshot) {
               if (snapshot.connectionState == ConnectionState.waiting) {
-                return const Padding(
+                return Padding(
                   padding: EdgeInsets.all(24),
                   child: Center(
                     child: CircularProgressIndicator(),
@@ -449,8 +449,8 @@ class _SectionTitle extends StatelessWidget {
         Expanded(
           child: Text(
             title,
-            style: const TextStyle(
-              color: AppColors.textPrimary,
+            style: TextStyle(
+              color: context.appColors.textPrimary,
               fontSize: 16,
               fontWeight: FontWeight.w800,
             ),
@@ -493,12 +493,12 @@ class _LastAudit extends StatelessWidget {
                     width: 42,
                     height: 42,
                     decoration: BoxDecoration(
-                      color: AppColors.infoBackground,
+                      color: context.appColors.purpleSoft,
                       borderRadius: BorderRadius.circular(13),
                     ),
-                    child: const Icon(
+                    child: Icon(
                       Icons.description_outlined,
-                      color: AppColors.info,
+                      color: context.appColors.info,
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -510,15 +510,15 @@ class _LastAudit extends StatelessWidget {
                           document.name,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontWeight: FontWeight.w700,
                           ),
                         ),
                         const SizedBox(height: 4),
                         Text(
                           '${document.displayDocumentType} · ${document.date}',
-                          style: const TextStyle(
-                            color: AppColors.textSecondary,
+                          style: TextStyle(
+                            color: context.appColors.textSecondary,
                             fontSize: 11,
                           ),
                         ),
@@ -527,16 +527,16 @@ class _LastAudit extends StatelessWidget {
                   ),
                   Text(
                     '$score',
-                    style: const TextStyle(
-                      color: AppColors.textPrimary,
+                    style: TextStyle(
+                      color: context.appColors.purple,
                       fontSize: 24,
                       fontWeight: FontWeight.w800,
                     ),
                   ),
-                  const Text(
+                  Text(
                     '/100',
                     style: TextStyle(
-                      color: AppColors.textSecondary,
+                      color: context.appColors.textSecondary,
                       fontSize: 11,
                     ),
                   ),
@@ -548,21 +548,22 @@ class _LastAudit extends StatelessWidget {
                 child: LinearProgressIndicator(
                   value: score / 100,
                   minHeight: 7,
+                  color: context.appColors.purple,
                 ),
               ),
               const SizedBox(height: 9),
               Row(
                 children: [
-                  const Icon(
+                  Icon(
                     Icons.info_outline_rounded,
                     size: 15,
-                    color: AppColors.warning,
+                    color: context.appColors.warning,
                   ),
                   const SizedBox(width: 6),
                   Text(
                     '${document.findingsCount} items need attention',
-                    style: const TextStyle(
-                      color: AppColors.textSecondary,
+                    style: TextStyle(
+                      color: context.appColors.textSecondary,
                       fontSize: 11,
                     ),
                   ),
@@ -597,9 +598,9 @@ class _DocumentRow extends StatelessWidget {
           padding: const EdgeInsets.all(14),
           child: Row(
             children: [
-              const Icon(
+              Icon(
                 Icons.description_outlined,
-                color: AppColors.secondary,
+                color: context.appColors.secondary,
               ),
               const SizedBox(width: 11),
               Expanded(
@@ -610,7 +611,7 @@ class _DocumentRow extends StatelessWidget {
                       document.name,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontWeight: FontWeight.w700,
                         fontSize: 12,
                       ),
@@ -618,16 +619,16 @@ class _DocumentRow extends StatelessWidget {
                     const SizedBox(height: 4),
                     Text(
                       '${document.displayDocumentType} · ${document.date}',
-                      style: const TextStyle(
-                        color: AppColors.textSecondary,
+                      style: TextStyle(
+                        color: context.appColors.textSecondary,
                         fontSize: 10,
                       ),
                     ),
                     const SizedBox(height: 3),
                     Text(
                       document.displayStatus,
-                      style: const TextStyle(
-                        color: AppColors.textSecondary,
+                      style: TextStyle(
+                        color: context.appColors.textSecondary,
                         fontSize: 10,
                       ),
                     ),
@@ -636,15 +637,15 @@ class _DocumentRow extends StatelessWidget {
               ),
               Text(
                 document.score.toString(),
-                style: const TextStyle(
-                  color: AppColors.textPrimary,
+                style: TextStyle(
+                  color: context.appColors.textPrimary,
                   fontWeight: FontWeight.w800,
                   fontSize: 18,
                 ),
               ),
-              const Icon(
+              Icon(
                 Icons.chevron_right_rounded,
-                color: AppColors.textSecondary,
+                color: context.appColors.textSecondary,
               ),
             ],
           ),
@@ -675,15 +676,15 @@ class _MessageCard extends StatelessWidget {
             Text(
               message,
               textAlign: TextAlign.center,
-              style: const TextStyle(
-                color: AppColors.textSecondary,
+              style: TextStyle(
+                color: context.appColors.textSecondary,
               ),
             ),
             if (buttonText != null && onPressed != null) ...[
               const SizedBox(height: 8),
               TextButton.icon(
                 onPressed: onPressed,
-                icon: const Icon(Icons.refresh_rounded),
+                icon: Icon(Icons.refresh_rounded),
                 label: Text(buttonText!),
               ),
             ],

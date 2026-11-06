@@ -1,10 +1,10 @@
-
 import json
 import re
 import time
 
 from google.genai import errors
 from apps.documents.semantic.gemini_client import generate
+from apps.documents.semantic.prompts import build_semantic_prompt
 
 
 def generate_with_retry(prompt, max_retries=3):
@@ -57,36 +57,7 @@ def run_jalur_b(parsed_document, document_type=None):
             "error": "Tidak ada teks yang berhasil diekstrak dari dokumen.",
         }
 
-    prompt = f"""
-Kamu adalah pemeriksa format dan isi {document_type or "karya tulis ilmiah"}.
-
-Analisis teks berikut untuk menemukan masalah yang benar-benar
-didukung oleh teks, seperti konsistensi sitasi, struktur penulisan,
-dan tata bahasa.
-
-Balas HANYA dengan JSON valid menggunakan format:
-{{
-  "findings": [
-    {{
-      "issue": "Penjelasan masalah",
-      "location": "Lokasi atau bagian dokumen",
-      "status": "failed"
-    }}
-  ]
-}}
-
-Aturan:
-- Gunakan status "failed" untuk masalah yang ditemukan.
-- Gunakan status "passed" hanya untuk hal yang jelas sudah sesuai.
-- Jangan mengarang nomor halaman atau informasi yang tidak tersedia.
-- Jika lokasi tidak diketahui, tulis "Lokasi tidak diketahui".
-- Jika tidak ada temuan yang dapat dipastikan, gunakan findings kosong.
-- Jangan menganggap margin, tata letak, atau ukuran font dapat
-  diverifikasi hanya dari teks hasil ekstraksi.
-
-Teks dokumen:
-{full_text[:12000]}
-"""
+    prompt = build_semantic_prompt(full_text, document_type)
 
     raw_response = ""
 
@@ -125,6 +96,7 @@ Teks dokumen:
             status = "passed" if status_value == "passed" else "failed"
 
             findings.append({
+                "category": str(item.get("category", "")).strip().lower(),
                 "issue": issue,
                 "location": str(
                     item.get("location") or "Lokasi tidak diketahui"

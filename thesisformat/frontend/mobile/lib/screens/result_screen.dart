@@ -1,4 +1,3 @@
-
 import 'package:flutter/material.dart';
 
 import '../models/audit_result.dart';
@@ -18,8 +17,7 @@ class ResultScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Gunakan hasil asli jika tersedia.
-    // Jangan menggunakan AuditResult.demo sebagai fallback.
+    // Gunakan hasil pemeriksaan asli jika tersedia.
     final AuditResult? result = document.result;
 
     if (result == null) {
@@ -33,10 +31,10 @@ class ResultScreen extends StatelessWidget {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Icon(
+                Icon(
                   Icons.hourglass_empty_rounded,
                   size: 56,
-                  color: AppColors.textSecondary,
+                  color: context.appColors.textSecondary,
                 ),
                 const SizedBox(height: 16),
                 const Text(
@@ -48,13 +46,13 @@ class ResultScreen extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 8),
-                const Text(
-                  'Data hasil pemeriksaan asli belum diterima '
-                  'oleh aplikasi. Silakan periksa koneksi API '
-                  'dan integrasi hasil dari server.',
+                Text(
+                  'Data hasil pemeriksaan belum diterima aplikasi. '
+                  'Silakan periksa koneksi API dan integrasi hasil '
+                  'dari server.',
                   textAlign: TextAlign.center,
                   style: TextStyle(
-                    color: AppColors.textSecondary,
+                    color: context.appColors.textSecondary,
                   ),
                 ),
                 const SizedBox(height: 20),
@@ -78,6 +76,11 @@ class ResultScreen extends StatelessWidget {
     }
 
     final score = result.totalScore.clamp(0, 100);
+    final formatScore = result.formatScore.clamp(0, 100);
+
+    // Skor semantik hanya ditampilkan sebagai angka jika tersedia.
+    final bool semanticAvailable = result.hasSemanticScore;
+    final semanticScore = result.semanticScore.clamp(0, 100);
 
     return Scaffold(
       appBar: AppBar(
@@ -96,8 +99,8 @@ class ResultScreen extends StatelessWidget {
           const SizedBox(height: 5),
           Text(
             '${document.displayDocumentType} · ${document.uploadDate}',
-            style: const TextStyle(
-              color: AppColors.textSecondary,
+            style: TextStyle(
+              color: context.appColors.textSecondary,
               fontSize: 12,
             ),
           ),
@@ -122,7 +125,8 @@ class ResultScreen extends StatelessWidget {
                             value: score / 100,
                             strokeWidth: 10,
                             strokeCap: StrokeCap.round,
-                            backgroundColor: AppColors.secondaryLight,
+                            backgroundColor:
+                                context.appColors.secondaryLight,
                           ),
                         ),
                         Column(
@@ -130,16 +134,16 @@ class ResultScreen extends StatelessWidget {
                           children: [
                             Text(
                               '$score',
-                              style: const TextStyle(
-                                color: AppColors.textPrimary,
+                              style: TextStyle(
+                                color: context.appColors.textPrimary,
                                 fontSize: 38,
                                 fontWeight: FontWeight.w800,
                               ),
                             ),
-                            const Text(
+                            Text(
                               '/100',
                               style: TextStyle(
-                                color: AppColors.textSecondary,
+                                color: context.appColors.textSecondary,
                                 fontSize: 12,
                               ),
                             ),
@@ -162,29 +166,34 @@ class ResultScreen extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 5),
-                  const Text(
+                  Text(
                     'Hasil berdasarkan data pemeriksaan yang diterima.',
                     textAlign: TextAlign.center,
                     style: TextStyle(
-                      color: AppColors.textSecondary,
+                      color: context.appColors.textSecondary,
                       fontSize: 12,
                     ),
                   ),
                   const SizedBox(height: 18),
                   Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Expanded(
                         child: ScoreCard(
                           title: 'Document Format',
-                          score: result.formatScore,
+                          score: formatScore,
                         ),
                       ),
                       const SizedBox(width: 10),
                       Expanded(
-                        child: ScoreCard(
-                          title: 'Structure & Content',
-                          score: result.semanticScore,
-                        ),
+                        child: semanticAvailable
+                            ? ScoreCard(
+                                title: 'Structure & Content',
+                                score: semanticScore,
+                              )
+                            : _ScoreUnavailableCard(
+                                title: 'Structure & Content',
+                              ),
                       ),
                     ],
                   ),
@@ -195,7 +204,7 @@ class ResultScreen extends StatelessWidget {
 
           const SizedBox(height: 23),
 
-          // Daftar temuan asli
+          // Daftar temuan pemeriksaan tetap dipertahankan.
           Row(
             children: [
               const Expanded(
@@ -209,8 +218,8 @@ class ResultScreen extends StatelessWidget {
               ),
               Text(
                 '${result.findings.length} findings',
-                style: const TextStyle(
-                  color: AppColors.textSecondary,
+                style: TextStyle(
+                  color: context.appColors.textSecondary,
                   fontSize: 12,
                 ),
               ),
@@ -248,6 +257,51 @@ class ResultScreen extends StatelessWidget {
             label: const Text('Review Another Document'),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _ScoreUnavailableCard extends StatelessWidget {
+  const _ScoreUnavailableCard({
+    required this.title,
+  });
+
+  final String title;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              title,
+              style: const TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: 12),
+            const Text(
+              '—',
+              style: TextStyle(
+                fontSize: 28,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'Skor belum tersedia',
+              style: TextStyle(
+                color: context.appColors.textSecondary,
+                fontSize: 11,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

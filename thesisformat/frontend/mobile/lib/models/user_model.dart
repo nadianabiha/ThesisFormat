@@ -1,4 +1,4 @@
-﻿class UserModel {
+class UserModel {
   const UserModel({required this.id, required this.name, required this.email});
 
   final String id;

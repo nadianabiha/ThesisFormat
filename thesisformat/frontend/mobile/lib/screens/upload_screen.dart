@@ -1,7 +1,5 @@
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
-import '../models/document_model.dart';
-import '../models/audit_result.dart';
 import '../theme/app_theme.dart';
 import 'processing_screen.dart';
 import '../widgets/upload_card.dart';
@@ -20,10 +18,10 @@ class _UploadScreenState extends State<UploadScreen> {
   bool _isUploading = false;
 
   String _documentTypeId(String label) => switch (label) {
-    'Thesis' => 'skripsi',
-    'Proposal' => 'proposal',
-    'Research Paper' => 'karya_tulis_ilmiah',
-    'Research Report' => 'laporan_penelitian',
+    'Tugas Akhir' => 'laporan_ta',
+    'Proposal TA' => 'proposal_ta',
+    'PKL/Magang' => 'pkl',
+    'Praktik' => 'praktik',
     _ => label,
   };
 
@@ -49,18 +47,18 @@ class _UploadScreenState extends State<UploadScreen> {
   Widget build(BuildContext context) => Scaffold(
     appBar: AppBar(title: const Text('Review document')),
     body: SafeArea(child: ListView(padding: const EdgeInsets.fromLTRB(20, 8, 20, 24), children: [
-      const Text('Choose the document you want to review.', style: TextStyle(color: AppColors.textSecondary)),
+      Text('Choose the document you want to review.', style: TextStyle(color: context.appColors.textSecondary)),
       const SizedBox(height: 24),
       const Text('Document type', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
       const SizedBox(height: 11),
-      Wrap(spacing: 8, runSpacing: 7, children: ['Thesis', 'Proposal', 'Research Paper', 'Research Report'].map((type) => ChoiceChip(label: Text(type, style: TextStyle(color: _type == _documentTypeId(type) ? Colors.white : AppColors.textPrimary, fontWeight: FontWeight.w600)), selected: _type == _documentTypeId(type), onSelected: (_) => setState(() => _type = _documentTypeId(type)))).toList()),
+      Wrap(spacing: 8, runSpacing: 7, children: ['Tugas Akhir', 'Proposal TA', 'PKL/Magang', 'Praktik'].map((type) => ChoiceChip(label: Text(type, style: TextStyle(color: _type == _documentTypeId(type) ? context.appColors.primaryExtraDark : context.appColors.textPrimary, fontWeight: FontWeight.w600)), selected: _type == _documentTypeId(type), onSelected: (_) => setState(() => _type = _documentTypeId(type)))).toList()),
       const SizedBox(height: 24),
       const Text('Document file', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
       const SizedBox(height: 11),
       UploadCard(file: _file, onPick: _pickFile, onRemove: () => setState(() => _file = null)),
-      if (_error != null) Padding(padding: const EdgeInsets.only(top: 10), child: Text(_error!, style: const TextStyle(color: AppColors.error, fontSize: 12))),
+      if (_error != null) Padding(padding: const EdgeInsets.only(top: 10), child: Text(_error!, style: TextStyle(color: context.appColors.error, fontSize: 12))),
       const SizedBox(height: 18),
-      const Card(child: Padding(padding: EdgeInsets.all(14), child: Row(children: [Icon(Icons.lock_outline_rounded, color: AppColors.primaryDark, size: 18), SizedBox(width: 9), Expanded(child: Text('Scanned documents and images are not supported yet.', style: TextStyle(color: AppColors.textSecondary, fontSize: 12)))]))),
+      Card(color: context.appColors.purpleSoft, child: Padding(padding: EdgeInsets.all(14), child: Row(children: [Icon(Icons.lock_outline_rounded, color: context.appColors.purple, size: 18), SizedBox(width: 9), Expanded(child: Text('Scanned documents and images are not supported yet.', style: TextStyle(color: context.appColors.textSecondary, fontSize: 12)))]))),
       const SizedBox(height: 22),
       ElevatedButton.icon(
         onPressed: _type == null || _file == null || _isUploading
@@ -87,8 +85,7 @@ class _UploadScreenState extends State<UploadScreen> {
                     documentType: _type!,
                   );
 
-                  if (!mounted) return;
-
+                  if (!context.mounted) return;
 
                   Navigator.of(context).push(
                     MaterialPageRoute<void>(
