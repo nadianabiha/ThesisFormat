@@ -18,10 +18,10 @@ class _UploadScreenState extends State<UploadScreen> {
   bool _isUploading = false;
 
   String _documentTypeId(String label) => switch (label) {
-    'Thesis' => 'skripsi',
-    'Proposal' => 'proposal',
-    'Research Paper' => 'karya_tulis_ilmiah',
-    'Research Report' => 'laporan_penelitian',
+    'Tugas Akhir' => 'laporan_ta',
+    'Proposal TA' => 'proposal_ta',
+    'PKL/Magang' => 'pkl',
+    'Praktik' => 'praktik',
     _ => label,
   };
 
@@ -51,7 +51,7 @@ class _UploadScreenState extends State<UploadScreen> {
       const SizedBox(height: 24),
       const Text('Document type', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
       const SizedBox(height: 11),
-      Wrap(spacing: 8, runSpacing: 7, children: ['Thesis', 'Proposal', 'Research Paper', 'Research Report'].map((type) => ChoiceChip(label: Text(type, style: TextStyle(color: _type == _documentTypeId(type) ? context.appColors.primaryExtraDark : context.appColors.textPrimary, fontWeight: FontWeight.w600)), selected: _type == _documentTypeId(type), onSelected: (_) => setState(() => _type = _documentTypeId(type)))).toList()),
+      Wrap(spacing: 8, runSpacing: 7, children: ['Tugas Akhir', 'Proposal TA', 'PKL/Magang', 'Praktik'].map((type) => ChoiceChip(label: Text(type, style: TextStyle(color: _type == _documentTypeId(type) ? context.appColors.primaryExtraDark : context.appColors.textPrimary, fontWeight: FontWeight.w600)), selected: _type == _documentTypeId(type), onSelected: (_) => setState(() => _type = _documentTypeId(type)))).toList()),
       const SizedBox(height: 24),
       const Text('Document file', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
       const SizedBox(height: 11),

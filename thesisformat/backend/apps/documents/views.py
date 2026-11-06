@@ -10,7 +10,9 @@ from apps.rules.models import MasterRule
 from .models import Document
 from .parser.jalur_a_service import run_jalur_a
 from .semantic.jalur_b_service import run_jalur_b
-from .serializers import DocumentSerializer
+from apps.audits.models import AuditResult
+from .scoring import build_result
+from .serializers import DocumentSerializer, get_document_result
 
 
 logger = logging.getLogger(__name__)
@@ -91,6 +93,23 @@ class DocumentUploadView(APIView):
                 "summary": summary,
             }
 
+            # 7b. Hitung skor di backend dan simpan ke AuditResult.
+            result = build_result(jalur_a_result, jalur_b_result)
+
+            AuditResult.objects.update_or_create(
+                document=document,
+                defaults={
+                    "physical_score": result["format_score"],
+                    "semantic_score": result["semantic_score"],
+                    "final_score": result["total_score"],
+                    "findings": result["findings"],
+                    "recommendations": {
+                        "has_format_score": result["has_format_score"],
+                        "has_semantic_score": result["has_semantic_score"],
+                    },
+                },
+            )
+
             document.status = "completed"
             document.save(
                 update_fields=[
@@ -152,6 +171,39 @@ class DocumentHistoryView(APIView):
             {
                 "documents": serializer.data,
                 "count": documents.count(),
+            },
+            status=status.HTTP_200_OK,
+        )
+
+
+class DocumentResultView(APIView):
+    """GET /api/v1/documents/<id>/result/ - hasil pemeriksaan satu dokumen."""
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, pk):
+        document = Document.objects.filter(pk=pk, user=request.user).first()
+
+        if document is None:
+            return Response(
+                {"detail": "Dokumen tidak ditemukan."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        result = get_document_result(document)
+
+        if result is None:
+            return Response(
+                {"detail": "Hasil pemeriksaan belum tersedia."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        return Response(
+            {
+                "document_id": document.id,
+                "file_name": document.title,
+                "document_type": document.document_type,
+                **result,
             },
             status=status.HTTP_200_OK,
         )

@@ -1,32 +1,71 @@
 class Finding {
-  const Finding({required this.type, required this.title, required this.location, required this.detail});
+  const Finding({
+    required this.type,
+    required this.title,
+    required this.location,
+    required this.detail,
+  });
 
   final String type;
   final String title;
   final String location;
   final String detail;
 
-  factory Finding.fromJson(Map<String, dynamic> json) => Finding(
-    type: (json['type'] ?? 'warning') as String,
-    title: (json['title'] ?? '') as String,
-    location: (json['location'] ?? '') as String,
-    detail: (json['detail'] ?? '') as String,
-  );
+  factory Finding.fromJson(Map<String, dynamic> json) {
+    final rawStatus = (json['status'] ??
+            json['result'] ??
+            json['type'] ??
+            'warning')
+        .toString()
+        .trim()
+        .toLowerCase();
+
+    final type = switch (rawStatus) {
+      'failed' || 'fail' || 'error' || 'gagal' => 'error',
+      'passed' || 'pass' || 'success' || 'berhasil' || 'lulus' =>
+        'success',
+      'pending' || 'warning' => 'warning',
+      _ => 'warning',
+    };
+
+    final title = (json['title'] ??
+            json['rule_key'] ??
+            json['rule_name'] ??
+            json['name'] ??
+            json['issue'] ??
+            'Temuan pemeriksaan')
+        .toString()
+        .replaceAll('_', ' ');
+
+    final location = (json['location'] ??
+            json['page'] ??
+            json['section'] ??
+            '')
+        .toString();
+
+    final detail = (json['detail'] ??
+            json['message'] ??
+            json['description'] ??
+            json['reason'] ??
+            json['issue'] ??
+            'Tidak ada detail tambahan.')
+        .toString();
+
+    return Finding(
+      type: type,
+      title: title,
+      location: location,
+      detail: detail,
+    );
+  }
 
   Map<String, dynamic> toJson() => {
-    'type': type,
-    'title': title,
-    'location': location,
-    'detail': detail,
-  };
+        'type': type,
+        'title': title,
+        'location': location,
+        'detail': detail,
+      };
 }
-
-const demoFindings = <Finding>[
-  Finding(type: 'error', title: 'Left margin is incorrect', location: 'Halaman 4', detail: '3.5 cm; it should be 4 cm'),
-  Finding(type: 'warning', title: 'Citation missing from the bibliography', location: 'BAB II, halaman 13', detail: 'Check the bibliography.'),
-  Finding(type: 'warning', title: 'Foreign term is not italicized', location: 'BAB III, halaman 25', detail: 'Italicize the foreign term.'),
-  Finding(type: 'success', title: 'Font size is correct', location: 'Entire document', detail: 'The font size follows the guidelines.'),
-];
 
 class AuditResult {
   const AuditResult({
@@ -34,6 +73,8 @@ class AuditResult {
     required this.formatScore,
     required this.semanticScore,
     required this.findings,
+    this.hasFormatScore = false,
+    this.hasSemanticScore = false,
   });
 
   final int totalScore;
@@ -41,27 +82,56 @@ class AuditResult {
   final int semanticScore;
   final List<Finding> findings;
 
-  factory AuditResult.fromJson(Map<String, dynamic> json) => AuditResult(
-    totalScore: ((json['total_score'] ?? json['totalScore'] ?? 0) as num).toInt(),
-    formatScore: ((json['format_score'] ?? json['formatScore'] ?? 0) as num).toInt(),
-    semanticScore: ((json['semantic_score'] ?? json['semanticScore'] ?? 0) as num).toInt(),
-    findings: (json['findings'] as List<dynamic>? ?? const [])
-        .whereType<Map<String, dynamic>>()
-        .map(Finding.fromJson)
-        .toList(),
-  );
+  // Menandakan apakah skor memiliki dasar perhitungan yang tersedia.
+  final bool hasFormatScore;
+  final bool hasSemanticScore;
+
+  factory AuditResult.fromJson(Map<String, dynamic> json) {
+    final rawFindings = json['findings'];
+
+    return AuditResult(
+      totalScore: (json['total_score'] as num?)?.toInt() ?? 0,
+      formatScore: (json['format_score'] as num?)?.toInt() ?? 0,
+      semanticScore: (json['semantic_score'] as num?)?.toInt() ?? 0,
+      hasFormatScore: json['has_format_score'] == true,
+      hasSemanticScore: json['has_semantic_score'] == true,
+      findings: rawFindings is List
+          ? rawFindings
+              .whereType<Map>()
+              .map(
+                (item) => Finding.fromJson(
+                  Map<String, dynamic>.from(item),
+                ),
+              )
+              .toList()
+          : [],
+    );
+  }
 
   Map<String, dynamic> toJson() => {
-    'total_score': totalScore,
-    'format_score': formatScore,
-    'semantic_score': semanticScore,
-    'findings': findings.map((finding) => finding.toJson()).toList(),
-  };
+        'total_score': totalScore,
+        'format_score': formatScore,
+        'semantic_score': semanticScore,
+        'has_format_score': hasFormatScore,
+        'has_semantic_score': hasSemanticScore,
+        'findings': findings.map((item) => item.toJson()).toList(),
+      };
 
   static const demo = AuditResult(
     totalScore: 86,
     formatScore: 92,
     semanticScore: 82,
     findings: demoFindings,
+    hasFormatScore: true,
+    hasSemanticScore: true,
   );
 }
+
+const demoFindings = <Finding>[
+  Finding(
+    type: 'success',
+    title: 'Format dokumen',
+    location: 'Dokumen',
+    detail: 'Format dokumen memenuhi pemeriksaan.',
+  ),
+];

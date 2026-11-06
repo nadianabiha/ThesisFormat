@@ -41,21 +41,21 @@ Periksa teks berikut terhadap SEMUA aturan di atas, mencakup 7 aspek:
 6. Kelogisan benang merah penelitian (rumusan masalah -> tujuan -> pembahasan nyambung)
 7. Konsistensi istilah teknis di seluruh naskah
 
-Balas HANYA dalam format JSON (tanpa teks tambahan di luar JSON):
+Balas HANYA dalam format JSON (tanpa teks tambahan di luar JSON).
+Untuk SETIAP aspek dari 7 aspek di atas, berikan SATU entri berstatus "passed"
+(jika sesuai) atau SATU/LEBIH entri berstatus "failed" (jika ada masalah).
+Jangan melewatkan aspek apa pun, agar skor dapat dihitung secara adil:
 {{
   "findings": [
     {{
-      "category": "sitasi" / "struktur" / "hierarki_bab" / "abstrak" / "tata_bahasa" / "benang_merah" / "konsistensi_istilah",
-      "issue": "deskripsi singkat masalahnya, sebutkan aturan Polinela mana yang dilanggar",
-      "location": "bagian/kalimat yang bermasalah (kutip singkat)",
-      "status": "failed"
+      "category": "sitasi" / "daftar_isi" / "hierarki_bab" / "abstrak" / "tata_bahasa" / "benang_merah" / "konsistensi_istilah",
+      "issue": "deskripsi singkat; untuk status failed sebutkan aturan Polinela yang dilanggar",
+      "location": "bagian/kalimat yang bermasalah (kutip singkat) atau \"Lokasi tidak diketahui\"",
+      "status": "passed" atau "failed"
     }}
   ]
 }}
 
-Jika semua aspek sudah sesuai pedoman, balas dengan:
-{{"findings": []}}
-
 Teks yang akan diperiksa:
-{full_text[:3000]}
+{full_text[:12000]}
 """

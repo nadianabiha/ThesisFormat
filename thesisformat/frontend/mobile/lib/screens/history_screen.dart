@@ -3,39 +3,51 @@ import 'package:flutter/material.dart';
 
 import '../models/document_model.dart';
 import '../services/api_service.dart';
-import '../theme/app_theme.dart';
 import '../widgets/document_card.dart';
 import 'result_screen.dart';
 
 class HistoryScreen extends StatefulWidget {
-  const HistoryScreen({super.key, this.embedded = false});
-
   final bool embedded;
+
+  const HistoryScreen({
+    super.key,
+    this.embedded = false,
+  });
 
   @override
   State<HistoryScreen> createState() => _HistoryScreenState();
 }
 
 class _HistoryScreenState extends State<HistoryScreen> {
-  final _search = TextEditingController();
+  final TextEditingController _search = TextEditingController();
+
   String _filter = 'All';
 
-  final _filters = const ['All', 'Thesis', 'Proposal', 'Reports'];
+  final List<String> _filters = [
+    'All',
+    'Tugas Akhir',
+    'Proposal TA',
+    'PKL/Magang',
+    'Praktik',
+  ];
 
   late Future<List<DocumentModel>> _historyFuture;
 
   @override
   void initState() {
     super.initState();
-    _loadHistory();
+    _historyFuture = _loadHistory();
   }
 
-  void _loadHistory() {
-    _historyFuture = const ApiService().getDocumentHistory();
+  Future<List<DocumentModel>> _loadHistory() async {
+    return const ApiService().getDocumentHistory();
   }
 
   Future<void> _refreshHistory() async {
-    setState(_loadHistory);
+    setState(() {
+      _historyFuture = _loadHistory();
+    });
+
     await _historyFuture;
   }
 
@@ -45,93 +57,148 @@ class _HistoryScreenState extends State<HistoryScreen> {
     super.dispose();
   }
 
+  // Menyamakan variasi penulisan jenis dokumen.
+  String _normalizeType(String value) {
+    return value
+        .toLowerCase()
+        .trim()
+        .replaceAll('-', '_')
+        .replaceAll(' ', '_');
+  }
+
+  // Memeriksa jenis dokumen berdasarkan filter yang dipilih.
   bool _matchesType(DocumentModel document) {
-    final type = document.documentType.toLowerCase();
+    final String type = _normalizeType(document.documentType);
 
     switch (_filter) {
-      case 'Thesis':
-        return type == 'skripsi' || type == 'thesis';
-      case 'Proposal':
-        return type == 'proposal';
-      case 'Reports':
-        return [
-          'laporan',
-          'laporan_penelitian',
-          'research report',
-          'karya_tulis_ilmiah',
-          'research paper',
-        ].contains(type);
+      case 'Tugas Akhir':
+        return {
+          'skripsi',
+          'thesis',
+          'laporan_ta',
+          'tugas_akhir',
+        }.contains(type);
+
+      case 'Proposal TA':
+        return {
+          'proposal',
+          'proposal_ta',
+          'proposal_skripsi',
+        }.contains(type);
+
+      case 'PKL/Magang':
+        return {
+          'pkl',
+          'magang',
+          'praktik_kerja_lapangan',
+        }.contains(type);
+
+      case 'Praktik':
+        return {
+          'praktik',
+          'praktikum',
+        }.contains(type);
+
+      case 'All':
       default:
         return true;
     }
   }
 
+  // Menerapkan pencarian nama file dan filter jenis dokumen.
+  List<DocumentModel> _getFilteredDocuments(
+    List<DocumentModel> documents,
+  ) {
+    final String keyword = _search.text.toLowerCase().trim();
+
+    return documents.where((document) {
+      final bool matchesSearch =
+          document.fileName.toLowerCase().contains(keyword);
+
+      final bool matchesFilter = _matchesType(document);
+
+      return matchesSearch && matchesFilter;
+    }).toList();
+  }
+
   @override
   Widget build(BuildContext context) {
-    final query = _search.text.trim().toLowerCase();
-
-    final heading = Padding(
-      padding: EdgeInsets.fromLTRB(20, 24, 20, 0),
-      child: Align(
-        alignment: Alignment.centerLeft,
-        child: Text(
-          'Document History',
-          style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800),
-        ),
-      ),
-    );
-
-    final content = Column(
+    final Widget content = Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        if (!widget.embedded)
-          Padding(
-            padding: EdgeInsets.fromLTRB(20, 8, 20, 0),
-            child: Text(
-              'Find your previous document reviews.',
-              style: TextStyle(color: context.appColors.textSecondary),
-            ),
+        if (!widget.embedded) ...[
+          Text(
+            'Riwayat Dokumen',
+            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
           ),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
-          child: TextField(
-            controller: _search,
-            onChanged: (_) => setState(() {}),
-            decoration: const InputDecoration(
-              hintText: 'Search documents...',
-              prefixIcon: Icon(Icons.search_rounded),
+          const SizedBox(height: 6),
+          Text(
+            'Lihat dokumen yang pernah kamu unggah.',
+            style: Theme.of(context).textTheme.bodyMedium,
+          ),
+          const SizedBox(height: 20),
+        ],
+
+        // Kolom pencarian dokumen.
+        TextField(
+          controller: _search,
+          onChanged: (_) {
+            setState(() {});
+          },
+          decoration: InputDecoration(
+            hintText: 'Cari dokumen...',
+            prefixIcon: const Icon(Icons.search),
+            suffixIcon: _search.text.isNotEmpty
+                ? IconButton(
+                    onPressed: () {
+                      _search.clear();
+                      setState(() {});
+                    },
+                    icon: const Icon(Icons.close),
+                  )
+                : null,
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
             ),
           ),
         ),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(20, 14, 20, 0),
-          child: Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: _filters.map((filter) {
-              final selected = _filter == filter;
 
-              return ChoiceChip(
-                label: Text(
-                  filter,
-                  style: TextStyle(
-                    color: selected ? context.appColors.primaryExtraDark : context.appColors.textPrimary,
-                    fontWeight: FontWeight.w600,
-                  ),
+        const SizedBox(height: 16),
+
+        // Pilihan kategori dokumen.
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            children: _filters.map((filter) {
+              final bool selected = _filter == filter;
+
+              return Padding(
+                padding: const EdgeInsets.only(right: 8),
+                child: ChoiceChip(
+                  label: Text(filter),
+                  selected: selected,
+                  onSelected: (_) {
+                    setState(() {
+                      _filter = filter;
+                    });
+                  },
                 ),
-                selected: selected,
-                onSelected: (_) => setState(() => _filter = filter),
               );
             }).toList(),
           ),
         ),
-        const SizedBox(height: 12),
+
+        const SizedBox(height: 16),
+
+        // Mengambil riwayat dari backend Django.
         Expanded(
           child: FutureBuilder<List<DocumentModel>>(
             future: _historyFuture,
             builder: (context, snapshot) {
               if (snapshot.connectionState == ConnectionState.waiting) {
-                return Center(
+                return const Center(
                   child: CircularProgressIndicator(),
                 );
               }
@@ -139,35 +206,29 @@ class _HistoryScreenState extends State<HistoryScreen> {
               if (snapshot.hasError) {
                 return Center(
                   child: Padding(
-                    padding: const EdgeInsets.all(24),
+                    padding: const EdgeInsets.all(20),
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(
-                          Icons.cloud_off_outlined,
-                          size: 42,
-                          color: context.appColors.textSecondary,
+                        const Icon(
+                          Icons.error_outline,
+                          size: 48,
+                          color: Colors.red,
                         ),
                         const SizedBox(height: 12),
-                        Text(
-                          'Gagal memuat riwayat dari server.',
+                        const Text(
+                          'Gagal memuat riwayat dokumen.',
                           textAlign: TextAlign.center,
                         ),
-                        const SizedBox(height: 8),
-                        Text(
-                          '${snapshot.error}',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            color: context.appColors.textSecondary,
-                            fontSize: 12,
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                        ElevatedButton(
+                        const SizedBox(height: 12),
+                        ElevatedButton.icon(
                           onPressed: () {
-                            setState(_loadHistory);
+                            setState(() {
+                              _historyFuture = _loadHistory();
+                            });
                           },
-                          child: Text('Coba lagi'),
+                          icon: const Icon(Icons.refresh),
+                          label: const Text('Coba Lagi'),
                         ),
                       ],
                     ),
@@ -175,34 +236,30 @@ class _HistoryScreenState extends State<HistoryScreen> {
                 );
               }
 
-              final allDocuments = snapshot.data ?? <DocumentModel>[];
+              final List<DocumentModel> documents =
+                  snapshot.data ?? [];
 
-              final documents = allDocuments.where((document) {
-                final matchesName =
-                    document.fileName.toLowerCase().contains(query);
+              final List<DocumentModel> filteredDocuments =
+                  _getFilteredDocuments(documents);
 
-                return matchesName && _matchesType(document);
-              }).toList();
-
-              if (documents.isEmpty) {
+              // Tampilan ketika hasil pencarian atau kategori kosong.
+              if (filteredDocuments.isEmpty) {
                 return RefreshIndicator(
                   onRefresh: _refreshHistory,
                   child: ListView(
                     physics: const AlwaysScrollableScrollPhysics(),
-                    padding: const EdgeInsets.only(top: 50),
-                    children: [
+                    children: const [
+                      SizedBox(height: 100),
                       Icon(
-                        Icons.history_rounded,
-                        color: context.appColors.textSecondary,
-                        size: 40,
+                        Icons.folder_open,
+                        size: 64,
+                        color: Colors.grey,
                       ),
-                      SizedBox(height: 12),
+                      SizedBox(height: 16),
                       Center(
                         child: Text(
-                          'Belum ada dokumen yang ditemukan.',
-                          style: TextStyle(
-                            color: context.appColors.textSecondary,
-                          ),
+                          'Tidak ada dokumen ditemukan.',
+                          textAlign: TextAlign.center,
                         ),
                       ),
                     ],
@@ -210,37 +267,30 @@ class _HistoryScreenState extends State<HistoryScreen> {
                 );
               }
 
+              // Daftar dokumen sesuai pencarian dan kategori.
               return RefreshIndicator(
                 onRefresh: _refreshHistory,
-                child: ListView(
+                child: ListView.builder(
                   physics: const AlwaysScrollableScrollPhysics(),
-                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
-                  children: [
-                    Text(
-                      '${documents.length} documents',
-                      style: TextStyle(
-                        color: context.appColors.textSecondary,
-                        fontSize: 12,
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-                    ...documents.map(
-                      (document) => Padding(
-                        padding: const EdgeInsets.only(bottom: 10),
-                        child: DocumentCard(
-                          document: document,
-                          onTap: () {
-                            Navigator.of(context).push(
-                              MaterialPageRoute<void>(
-                                builder: (_) =>
-                                    ResultScreen(document: document),
-                              ),
-                            );
-                          },
-                        ),
-                      ),
-                    ),
-                  ],
+                  itemCount: filteredDocuments.length,
+                  itemBuilder: (context, index) {
+                    final DocumentModel document =
+                        filteredDocuments[index];
+
+                    return DocumentCard(
+                      document: document,
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => ResultScreen(
+                              document: document,
+                            ),
+                          ),
+                        );
+                      },
+                    );
+                  },
                 ),
               );
             },
@@ -250,17 +300,17 @@ class _HistoryScreenState extends State<HistoryScreen> {
     );
 
     if (widget.embedded) {
-      return Column(
-        children: [
-          heading,
-          Expanded(child: content),
-        ],
-      );
+      return content;
     }
 
     return Scaffold(
-      appBar: AppBar(title: Text('Document History')),
-      body: SafeArea(child: content),
+      appBar: AppBar(
+        title: const Text('Riwayat Dokumen'),
+      ),
+      body: Padding(
+        padding: const EdgeInsets.all(16),
+        child: content,
+      ),
     );
   }
 }
