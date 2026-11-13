@@ -60,6 +60,8 @@ class ThesisFormatTokenSerializer(TokenObtainPairSerializer):
             "id": str(user.pk),
             "name": user.get_full_name().strip() or user.username,
             "email": user.email,
+            # Dipakai Web Dashboard untuk menolak akun non-admin.
+            "is_staff": user.is_staff,
         }
         return data
 

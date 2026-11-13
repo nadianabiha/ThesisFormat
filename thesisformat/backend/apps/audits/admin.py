@@ -10,6 +10,8 @@ class AuditResultAdmin(admin.ModelAdmin):
         "physical_score",
         "semantic_score",
         "final_score",
+        "review_status",
+        "corrected_score",
         "created_at",
     )
 
@@ -18,5 +20,6 @@ class AuditResultAdmin(admin.ModelAdmin):
     )
 
     list_filter = (
+        "review_status",
         "created_at",
     )
