@@ -99,26 +99,29 @@ class ApiService {
       );
     }
 
-    final request = http.MultipartRequest(
-      'POST',
-      Uri.parse('$baseUrl/api/v1/documents/upload/'),
-    );
+    // Permintaan multipart hanya bisa dikirim sekali, jadi dibuat ulang
+    // setiap kali dikirim (mis. setelah token diperbarui).
+    final response = await _sendAuthorized((authHeaders) async {
+      final request = http.MultipartRequest(
+        'POST',
+        Uri.parse('$baseUrl/api/v1/documents/upload/'),
+      );
 
-    request.headers['Authorization'] = 'Bearer $token';
-    request.fields['title'] = fileName;
-    // ID jenis dokumen sudah sama dengan backend (lihat document_type.dart).
-    request.fields['document_type'] = documentType;
+      request.headers.addAll(authHeaders);
+      request.fields['title'] = fileName;
+      // ID jenis dokumen sudah sama dengan backend (lihat document_type.dart).
+      request.fields['document_type'] = documentType;
 
-    request.files.add(
-      http.MultipartFile.fromBytes(
-        'file',
-        bytes,
-        filename: fileName,
-      ),
-    );
+      request.files.add(
+        http.MultipartFile.fromBytes(
+          'file',
+          bytes,
+          filename: fileName,
+        ),
+      );
 
-    final streamedResponse = await request.send();
-    final response = await http.Response.fromStream(streamedResponse);
+      return http.Response.fromStream(await request.send());
+    });
     final data = _decodeResponse(response);
 
     final rawDocument = data['document'];
@@ -171,12 +174,11 @@ class ApiService {
       );
     }
 
-    final response = await http.get(
-      Uri.parse('$baseUrl/api/v1/documents/$documentId/result/'),
-      headers: {
-        'Authorization': 'Bearer $token',
-        'Accept': 'application/json',
-      },
+    final response = await _sendAuthorized(
+      (authHeaders) => http.get(
+        Uri.parse('$baseUrl/api/v1/documents/$documentId/result/'),
+        headers: {...authHeaders, 'Accept': 'application/json'},
+      ),
     );
 
     return AuditResult.fromJson(_decodeResponse(response));
@@ -198,12 +200,11 @@ class ApiService {
 
     debugPrint('HISTORY URL: $uri');
 
-    final response = await http.get(
-      uri,
-      headers: {
-        'Authorization': 'Bearer $token',
-        'Accept': 'application/json',
-      },
+    final response = await _sendAuthorized(
+      (authHeaders) => http.get(
+        uri,
+        headers: {...authHeaders, 'Accept': 'application/json'},
+      ),
     );
 
     debugPrint('HISTORY STATUS: ${response.statusCode}');
@@ -241,6 +242,91 @@ class ApiService {
   Future<Map<String, dynamic>> getProfile() async {
     return AuthService.instance.currentUser?.toJson() ??
         <String, dynamic>{};
+  }
+
+  // ---------------------------------------------------------------
+  // Perpanjangan sesi otomatis
+  // ---------------------------------------------------------------
+  // Access token berlaku 30 menit. Jika backend menjawab 401 (token
+  // kedaluwarsa), minta access token baru memakai refresh token
+  // (berlaku 7 hari) lalu ulangi permintaan. Pengguna tidak perlu
+  // login ulang selama aplikasi masih terbuka.
+
+  /// Penukaran token yang sedang berjalan. Dipakai bersama agar
+  /// beberapa permintaan yang kedaluwarsa bersamaan hanya memicu
+  /// satu kali penukaran.
+  static Future<bool>? _refreshing;
+
+  /// Kirim permintaan yang butuh login. [send] menerima header
+  /// Authorization dan bisa dipanggil dua kali (sebelum & sesudah
+  /// token diperbarui), jadi harus membuat permintaan baru setiap kali.
+  Future<http.Response> _sendAuthorized(
+    Future<http.Response> Function(Map<String, String> authHeaders) send,
+  ) async {
+    final token = AuthService.instance.accessToken;
+    if (token == null || token.isEmpty) {
+      throw const SessionExpiredException();
+    }
+
+    final response = await send({'Authorization': 'Bearer $token'});
+    if (response.statusCode != 401) return response;
+
+    // Token kedaluwarsa: tukar dengan yang baru, lalu coba sekali lagi.
+    final refreshed = await _refreshAccessToken();
+    final newToken = AuthService.instance.accessToken;
+    if (!refreshed || newToken == null) {
+      AuthService.instance.expireSession();
+      throw const SessionExpiredException();
+    }
+
+    final retried = await send({'Authorization': 'Bearer $newToken'});
+    if (retried.statusCode == 401) {
+      AuthService.instance.expireSession();
+      throw const SessionExpiredException();
+    }
+    return retried;
+  }
+
+  static Future<bool> _refreshAccessToken() {
+    return _refreshing ??= _requestNewAccessToken().whenComplete(() {
+      _refreshing = null;
+    });
+  }
+
+  /// true  = token baru berhasil didapat.
+  /// false = refresh token ditolak backend (sesi benar-benar berakhir).
+  /// Error koneksi tidak ditangkap di sini, agar pengguna TIDAK
+  /// dikeluarkan hanya karena internet sedang putus.
+  static Future<bool> _requestNewAccessToken() async {
+    final refresh = AuthService.instance.refreshToken;
+    if (refresh == null || refresh.isEmpty) return false;
+
+    final response = await http.post(
+      Uri.parse('$baseUrl/api/token/refresh/'),
+      headers: const {'Content-Type': 'application/json'},
+      body: jsonEncode({'refresh': refresh}),
+    );
+
+    if (response.statusCode != 200) return false;
+
+    final dynamic data;
+    try {
+      data = jsonDecode(response.body);
+    } on FormatException {
+      return false;
+    }
+    final access = data is Map ? data['access']?.toString() : null;
+    if (access == null || access.isEmpty) return false;
+
+    // Pengguna sudah logout saat penukaran berlangsung: jangan pakai token.
+    if (AuthService.instance.refreshToken != refresh) return false;
+
+    AuthService.instance.updateAccessToken(
+      access,
+      // Diisi backend jika ROTATE_REFRESH_TOKENS diaktifkan.
+      refreshToken: data['refresh']?.toString(),
+    );
+    return true;
   }
 
   Map<String, dynamic> _decodeResponse(http.Response response) {
@@ -315,4 +401,11 @@ class ApiException implements Exception {
 
   @override
   String toString() => message;
+}
+
+/// Sesi login berakhir dan tidak bisa diperpanjang; pengguna
+/// diarahkan ke halaman Login (lihat main.dart).
+class SessionExpiredException extends ApiException {
+  const SessionExpiredException()
+      : super('Sesi login berakhir. Silakan login kembali.');
 }

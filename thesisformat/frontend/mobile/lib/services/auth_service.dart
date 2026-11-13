@@ -29,6 +29,28 @@ class AuthService extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Ganti access token yang kedaluwarsa dengan token baru dari
+  /// /api/token/refresh/. Tidak memanggil notifyListeners karena
+  /// data pengguna tidak berubah (layar tidak perlu dibangun ulang).
+  void updateAccessToken(String accessToken, {String? refreshToken}) {
+    _accessToken = accessToken;
+    if (refreshToken != null && refreshToken.isNotEmpty) {
+      _refreshToken = refreshToken;
+    }
+  }
+
+  /// Dipanggil (sekali) saat sesi tidak bisa diperpanjang lagi.
+  /// Diisi di main.dart untuk membuka halaman Login.
+  VoidCallback? onSessionExpired;
+
+  /// Sesi berakhir: hapus data login lalu beri tahu aplikasi.
+  void expireSession() {
+    // Abaikan jika sudah logout (mis. beberapa permintaan gagal bersamaan).
+    if (_accessToken == null && _currentUser == null) return;
+    logout();
+    onSessionExpired?.call();
+  }
+
   void logout() {
     _currentUser = null;
     _accessToken = null;
