@@ -2,33 +2,65 @@ import json
 import re
 import time
 
+import httpx
 from google.genai import errors
-from apps.documents.semantic.gemini_client import generate
+
+from apps.documents.semantic.gemini_client import (
+    GEMINI_MODELS,
+    GEMINI_TIMEOUT_SECONDS,
+    generate,
+)
 from apps.documents.semantic.prompts import build_semantic_prompt
 
+# Kode error Gemini yang bersifat sementara (sibuk, kuota, timeout server).
+TRANSIENT_CODES = {429, 500, 502, 503, 504}
 
-def generate_with_retry(prompt, max_retries=3):
+# Batas total waktu untuk semua percobaan (detik). Model cadangan hanya
+# dicoba jika sisa waktu masih cukup untuk satu panggilan penuh, agar
+# upload tidak menggantung terlalu lama.
+TOTAL_BUDGET_SECONDS = 150
+
+
+def _is_transient(exc):
+    if isinstance(exc, errors.APIError):
+        return getattr(exc, "code", None) in TRANSIENT_CODES
+    # Timeout dari sisi kita, atau koneksi terputus.
+    return isinstance(exc, httpx.TransportError)
+
+
+def generate_with_retry(prompt, models=None):
     """
-    Mencoba ulang permintaan Gemini jika server sedang bermasalah.
+    Panggil Gemini dengan model utama; jika sibuk/timeout, pindah
+    ke model cadangan. Error lain (mis. API key salah) langsung dilempar.
     """
-    for attempt in range(max_retries):
+    models = models or GEMINI_MODELS
+    started = time.monotonic()
+    last_exc = None
+
+    for index, model in enumerate(models):
+        if index > 0:
+            elapsed = time.monotonic() - started
+            if elapsed + GEMINI_TIMEOUT_SECONDS > TOTAL_BUDGET_SECONDS:
+                break
+            time.sleep(1)
+
         try:
-            return generate(prompt)
+            return generate(prompt, model=model)
 
-        except errors.ServerError as exc:
-            # Coba ulang hanya untuk error server sementara.
-            if getattr(exc, "code", None) not in (429, 500, 502, 503, 504):
+        except Exception as exc:
+            if not _is_transient(exc):
                 raise
 
-            if attempt == max_retries - 1:
-                raise
+            last_exc = exc
+            print(f"Gemini {model} gagal ({type(exc).__name__}): {exc}")
 
-            delay = 2 ** (attempt + 1)
-            print(
-                f"Gemini sedang bermasalah. "
-                f"Mencoba ulang dalam {delay} detik..."
-            )
-            time.sleep(delay)
+            # Tanpa koneksi internet, model lain juga pasti gagal.
+            if isinstance(exc, httpx.ConnectError):
+                break
+
+    if last_exc is None:
+        raise ValueError("Tidak ada model Gemini yang dikonfigurasi.")
+    raise last_exc
 
 
 def run_jalur_b(parsed_document, document_type=None):

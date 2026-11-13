@@ -1,19 +1,19 @@
-
 import 'package:flutter/material.dart';
 
 import '../models/document_model.dart';
 import '../models/document_type.dart';
 import '../services/api_service.dart';
+import '../services/document_events.dart';
+import '../theme/app_theme.dart';
 import '../widgets/document_card.dart';
+import '../widgets/responsive.dart';
+import '../widgets/ui_kit.dart';
 import 'result_screen.dart';
 
 class HistoryScreen extends StatefulWidget {
   final bool embedded;
 
-  const HistoryScreen({
-    super.key,
-    this.embedded = false,
-  });
+  const HistoryScreen({super.key, this.embedded = false});
 
   @override
   State<HistoryScreen> createState() => _HistoryScreenState();
@@ -22,12 +22,8 @@ class HistoryScreen extends StatefulWidget {
 class _HistoryScreenState extends State<HistoryScreen> {
   final TextEditingController _search = TextEditingController();
 
-  String _filter = 'All';
-
-  final List<String> _filters = [
-    'All',
-    ...DocumentType.all.map((type) => type.label),
-  ];
+  /// null = semua jenis dokumen.
+  String? _filter;
 
   late Future<List<DocumentModel>> _historyFuture;
 
@@ -35,10 +31,23 @@ class _HistoryScreenState extends State<HistoryScreen> {
   void initState() {
     super.initState();
     _historyFuture = _loadHistory();
+    DocumentEvents.instance.addListener(_onDocumentsChanged);
   }
 
-  Future<List<DocumentModel>> _loadHistory() async {
-    return const ApiService().getDocumentHistory();
+  // Dipanggil setelah upload berhasil: muat ulang riwayat.
+  void _onDocumentsChanged() {
+    if (!mounted) return;
+    setState(() {
+      _historyFuture = _loadHistory();
+    });
+  }
+
+  Future<List<DocumentModel>> _loadHistory() {
+    final future = const ApiService().getDocumentHistory();
+    // Error tetap ditampilkan oleh FutureBuilder; ignore() mencegah
+    // "unhandled exception" jika layar sudah ditutup sebelum selesai.
+    future.ignore();
+    return future;
   }
 
   Future<void> _refreshHistory() async {
@@ -46,107 +55,146 @@ class _HistoryScreenState extends State<HistoryScreen> {
       _historyFuture = _loadHistory();
     });
 
-    await _historyFuture;
+    try {
+      await _historyFuture;
+    } catch (_) {
+      // Pesan error ditampilkan oleh FutureBuilder.
+    }
   }
 
   @override
   void dispose() {
+    DocumentEvents.instance.removeListener(_onDocumentsChanged);
     _search.dispose();
     super.dispose();
   }
 
   // Memeriksa jenis dokumen berdasarkan filter yang dipilih.
   bool _matchesType(DocumentModel document) {
-    if (_filter == 'All') return true;
-    return DocumentType.fromRaw(document.documentType)?.label == _filter;
+    if (_filter == null) return true;
+    return DocumentType.fromRaw(document.documentType)?.id == _filter;
   }
 
   // Menerapkan pencarian nama file dan filter jenis dokumen.
-  List<DocumentModel> _getFilteredDocuments(
-    List<DocumentModel> documents,
-  ) {
+  List<DocumentModel> _getFilteredDocuments(List<DocumentModel> documents) {
     final String keyword = _search.text.toLowerCase().trim();
 
     return documents.where((document) {
-      final bool matchesSearch =
-          document.fileName.toLowerCase().contains(keyword);
+      final bool matchesSearch = document.fileName.toLowerCase().contains(
+        keyword,
+      );
 
-      final bool matchesFilter = _matchesType(document);
-
-      return matchesSearch && matchesFilter;
+      return matchesSearch && _matchesType(document);
     }).toList();
   }
 
+  Widget _scrollMessage(Widget child) => RefreshIndicator(
+    onRefresh: _refreshHistory,
+    child: ListView(
+      physics: const AlwaysScrollableScrollPhysics(),
+      padding: const EdgeInsets.fromLTRB(22, 24, 22, 24),
+      children: [child],
+    ),
+  );
+
   @override
   Widget build(BuildContext context) {
+    final c = context.appColors;
+
     final Widget content = Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        if (!widget.embedded) ...[
-          Text(
-            'Riwayat Dokumen',
-            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                  fontWeight: FontWeight.bold,
+        Padding(
+          padding: EdgeInsets.fromLTRB(22, widget.embedded ? 20 : 4, 22, 0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (widget.embedded) ...[
+                Text(
+                  'Document History',
+                  style: TextStyle(
+                    color: c.textPrimary,
+                    fontSize: 24,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: -.3,
+                  ),
                 ),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            'Lihat dokumen yang pernah kamu unggah.',
-            style: Theme.of(context).textTheme.bodyMedium,
-          ),
-          const SizedBox(height: 20),
-        ],
+                const SizedBox(height: 4),
+                Text(
+                  'All documents you have reviewed.',
+                  style: TextStyle(color: c.textSecondary, fontSize: 13),
+                ),
+                const SizedBox(height: 18),
+              ],
 
-        // Kolom pencarian dokumen.
-        TextField(
-          controller: _search,
-          onChanged: (_) {
-            setState(() {});
-          },
-          decoration: InputDecoration(
-            hintText: 'Cari dokumen...',
-            prefixIcon: const Icon(Icons.search),
-            suffixIcon: _search.text.isNotEmpty
-                ? IconButton(
-                    onPressed: () {
-                      _search.clear();
-                      setState(() {});
-                    },
-                    icon: const Icon(Icons.close),
-                  )
-                : null,
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
+              // Kolom pencarian dokumen.
+              TextField(
+                controller: _search,
+                onChanged: (_) => setState(() {}),
+                decoration: InputDecoration(
+                  hintText: 'Cari dokumen...',
+                  prefixIcon: const Icon(Icons.search_rounded),
+                  suffixIcon: _search.text.isNotEmpty
+                      ? IconButton(
+                          onPressed: () {
+                            _search.clear();
+                            setState(() {});
+                          },
+                          icon: const Icon(Icons.close_rounded),
+                        )
+                      : null,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(30),
+                    borderSide: BorderSide(color: c.border),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(30),
+                    borderSide: BorderSide(color: c.border),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(30),
+                    borderSide: BorderSide(color: c.primaryDark, width: 1.5),
+                  ),
+                ),
+              ),
+            ],
           ),
         ),
 
-        const SizedBox(height: 16),
+        const SizedBox(height: 14),
 
         // Pilihan kategori dokumen.
         SingleChildScrollView(
           scrollDirection: Axis.horizontal,
+          padding: const EdgeInsets.symmetric(horizontal: 22),
           child: Row(
-            children: _filters.map((filter) {
-              final bool selected = _filter == filter;
-
-              return Padding(
-                padding: const EdgeInsets.only(right: 8),
-                child: ChoiceChip(
-                  label: Text(filter),
-                  selected: selected,
-                  onSelected: (_) {
-                    setState(() {
-                      _filter = filter;
-                    });
+            children: [
+              PillChip(
+                label: 'All',
+                icon: Icons.apps_rounded,
+                selected: _filter == null,
+                onTap: () => setState(() => _filter = null),
+              ),
+              for (final type in DocumentType.all) ...[
+                const SizedBox(width: 8),
+                Builder(
+                  builder: (context) {
+                    final style = DocTypeStyle.of(context, type.id);
+                    return PillChip(
+                      label: type.label,
+                      icon: style.icon,
+                      color: style.color,
+                      selected: _filter == type.id,
+                      onTap: () => setState(() => _filter = type.id),
+                    );
                   },
                 ),
-              );
-            }).toList(),
+              ],
+            ],
           ),
         ),
 
-        const SizedBox(height: 16),
+        const SizedBox(height: 6),
 
         // Mengambil riwayat dari backend Django.
         Expanded(
@@ -154,71 +202,32 @@ class _HistoryScreenState extends State<HistoryScreen> {
             future: _historyFuture,
             builder: (context, snapshot) {
               if (snapshot.connectionState == ConnectionState.waiting) {
-                return const Center(
-                  child: CircularProgressIndicator(),
-                );
+                return const Center(child: CircularProgressIndicator());
               }
 
               if (snapshot.hasError) {
-                return Center(
-                  child: Padding(
-                    padding: const EdgeInsets.all(20),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(
-                          Icons.error_outline,
-                          size: 48,
-                          color: Colors.red,
-                        ),
-                        const SizedBox(height: 12),
-                        const Text(
-                          'Gagal memuat riwayat dokumen.',
-                          textAlign: TextAlign.center,
-                        ),
-                        const SizedBox(height: 12),
-                        ElevatedButton.icon(
-                          onPressed: () {
-                            setState(() {
-                              _historyFuture = _loadHistory();
-                            });
-                          },
-                          icon: const Icon(Icons.refresh),
-                          label: const Text('Coba Lagi'),
-                        ),
-                      ],
-                    ),
+                return _scrollMessage(
+                  EmptyState(
+                    icon: Icons.cloud_off_rounded,
+                    message: 'Gagal memuat riwayat dokumen.',
+                    buttonText: 'Coba Lagi',
+                    onPressed: () => setState(() {
+                      _historyFuture = _loadHistory();
+                    }),
                   ),
                 );
               }
 
-              final List<DocumentModel> documents =
-                  snapshot.data ?? [];
-
-              final List<DocumentModel> filteredDocuments =
-                  _getFilteredDocuments(documents);
+              final filteredDocuments = _getFilteredDocuments(
+                snapshot.data ?? [],
+              );
 
               // Tampilan ketika hasil pencarian atau kategori kosong.
               if (filteredDocuments.isEmpty) {
-                return RefreshIndicator(
-                  onRefresh: _refreshHistory,
-                  child: ListView(
-                    physics: const AlwaysScrollableScrollPhysics(),
-                    children: const [
-                      SizedBox(height: 100),
-                      Icon(
-                        Icons.folder_open,
-                        size: 64,
-                        color: Colors.grey,
-                      ),
-                      SizedBox(height: 16),
-                      Center(
-                        child: Text(
-                          'Tidak ada dokumen ditemukan.',
-                          textAlign: TextAlign.center,
-                        ),
-                      ),
-                    ],
+                return _scrollMessage(
+                  const EmptyState(
+                    icon: Icons.folder_open_rounded,
+                    message: 'Tidak ada dokumen ditemukan.',
                   ),
                 );
               }
@@ -226,27 +235,41 @@ class _HistoryScreenState extends State<HistoryScreen> {
               // Daftar dokumen sesuai pencarian dan kategori.
               return RefreshIndicator(
                 onRefresh: _refreshHistory,
-                child: ListView.builder(
+                child: ListView(
                   physics: const AlwaysScrollableScrollPhysics(),
-                  itemCount: filteredDocuments.length,
-                  itemBuilder: (context, index) {
-                    final DocumentModel document =
-                        filteredDocuments[index];
-
-                    return DocumentCard(
-                      document: document,
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => ResultScreen(
-                              document: document,
-                            ),
+                  padding: const EdgeInsets.fromLTRB(22, 10, 22, 24),
+                  children: [
+                    Text(
+                      '${filteredDocuments.length} documents',
+                      style: TextStyle(
+                        color: c.textSecondary,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    // HP: 1 kolom, tablet: 2 kolom, desktop: 3 kolom.
+                    ResponsiveWrapGrid(
+                      minItemWidth: 300,
+                      maxColumns: 3,
+                      spacing: 12,
+                      children: [
+                        for (final document in filteredDocuments)
+                          DocumentCard(
+                            document: document,
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute<void>(
+                                  builder: (context) =>
+                                      ResultScreen(document: document),
+                                ),
+                              );
+                            },
                           ),
-                        );
-                      },
-                    );
-                  },
+                      ],
+                    ),
+                  ],
                 ),
               );
             },
@@ -260,13 +283,8 @@ class _HistoryScreenState extends State<HistoryScreen> {
     }
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Riwayat Dokumen'),
-      ),
-      body: Padding(
-        padding: const EdgeInsets.all(16),
-        child: content,
-      ),
+      appBar: AppBar(title: const Text('Document History')),
+      body: MobileFrame(maxWidth: context.contentMaxWidth, child: content),
     );
   }
 }

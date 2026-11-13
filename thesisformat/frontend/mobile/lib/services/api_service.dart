@@ -7,6 +7,7 @@ import '../models/audit_result.dart';
 import '../models/document_model.dart';
 import '../models/user_model.dart';
 import 'auth_service.dart';
+import 'document_events.dart';
 
 /// API client untuk backend Django.
 class ApiService {
@@ -153,6 +154,9 @@ class ApiService {
       'score': result.totalScore,
       'size_bytes': bytes.length,
     });
+
+    // Beri tahu Home dan Riwayat agar memuat ulang daftar dokumen.
+    DocumentEvents.instance.documentsChanged();
 
     return document;
   }

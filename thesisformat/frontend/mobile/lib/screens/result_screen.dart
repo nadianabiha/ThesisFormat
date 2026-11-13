@@ -4,46 +4,65 @@ import '../models/audit_result.dart';
 import '../models/document_model.dart';
 import '../theme/app_theme.dart';
 import '../widgets/finding_card.dart';
+import '../widgets/responsive.dart';
 import '../widgets/score_card.dart';
+import '../widgets/ui_kit.dart';
 import 'upload_screen.dart';
 
-class ResultScreen extends StatelessWidget {
-  const ResultScreen({
-    super.key,
-    required this.document,
-  });
+class ResultScreen extends StatefulWidget {
+  const ResultScreen({super.key, required this.document});
 
   final DocumentModel document;
 
   @override
+  State<ResultScreen> createState() => _ResultScreenState();
+}
+
+class _ResultScreenState extends State<ResultScreen> {
+  /// null = semua temuan; selain itu 'error' / 'warning' / 'success'.
+  String? _filter;
+
+  void _reviewAnother() {
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute<void>(builder: (_) => const UploadScreen()),
+      (route) => route.isFirst,
+    );
+  }
+
+  Widget _reviewAnotherButton() => ElevatedButton.icon(
+    onPressed: _reviewAnother,
+    icon: const Icon(Icons.refresh_rounded),
+    label: const Text('Review Another Document'),
+  );
+
+  @override
   Widget build(BuildContext context) {
+    final c = context.appColors;
+    final document = widget.document;
+
     // Gunakan hasil pemeriksaan asli jika tersedia.
     final AuditResult? result = document.result;
 
     if (result == null) {
       return Scaffold(
-        appBar: AppBar(
-          title: const Text('Review Results'),
-        ),
-        body: Center(
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
+        appBar: AppBar(title: const Text('Review Results')),
+        body: SafeArea(
+          child: MobileFrame(
+            child: ListView(
+              padding: const EdgeInsets.all(24),
               children: [
-                Icon(
-                  Icons.hourglass_empty_rounded,
-                  size: 56,
-                  color: context.appColors.textSecondary,
+                const Center(
+                  child: BlobIllustration(
+                    size: 160,
+                    icon: Icons.hourglass_empty_rounded,
+                    badgeIcon: Icons.priority_high_rounded,
+                  ),
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 20),
                 const Text(
                   'Hasil pemeriksaan belum tersedia.',
                   textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w700,
-                  ),
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
                 ),
                 const SizedBox(height: 8),
                 Text(
@@ -51,20 +70,11 @@ class ResultScreen extends StatelessWidget {
                   'Silakan periksa koneksi API dan integrasi hasil '
                   'dari server.',
                   textAlign: TextAlign.center,
-                  style: TextStyle(
-                    color: context.appColors.textSecondary,
-                  ),
+                  style: TextStyle(color: c.textSecondary),
                 ),
-                const SizedBox(height: 20),
+                const SizedBox(height: 24),
                 ElevatedButton.icon(
-                  onPressed: () {
-                    Navigator.of(context).pushAndRemoveUntil(
-                      MaterialPageRoute<void>(
-                        builder: (_) => const UploadScreen(),
-                      ),
-                      (route) => route.isFirst,
-                    );
-                  },
+                  onPressed: _reviewAnother,
                   icon: const Icon(Icons.refresh_rounded),
                   label: const Text('Kembali ke Upload'),
                 ),
@@ -79,228 +89,223 @@ class ResultScreen extends StatelessWidget {
     final formatScore = result.formatScore.clamp(0, 100);
 
     // Skor semantik hanya ditampilkan sebagai angka jika tersedia.
-    final bool semanticAvailable = result.hasSemanticScore;
-    final semanticScore = result.semanticScore.clamp(0, 100);
+    final int? semanticScore = result.hasSemanticScore
+        ? result.semanticScore.clamp(0, 100)
+        : null;
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Review Results'),
-      ),
-      body: ListView(
-        padding: const EdgeInsets.fromLTRB(20, 6, 20, 28),
-        children: [
-          Text(
-            document.fileName,
-            style: const TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          const SizedBox(height: 5),
-          Text(
-            '${document.displayDocumentType} · ${document.uploadDate}',
-            style: TextStyle(
-              color: context.appColors.textSecondary,
-              fontSize: 12,
-            ),
-          ),
-          const SizedBox(height: 16),
+    int count(String type) =>
+        result.findings.where((f) => f.type.toLowerCase() == type).length;
 
-          // Ringkasan skor
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(19),
+    final filtered = _filter == null
+        ? result.findings
+        : result.findings
+              .where((f) => f.type.toLowerCase() == _filter)
+              .toList();
+
+    final verdict = score >= 90
+        ? 'Excellent'
+        : score >= 75
+        ? 'Your document is looking good'
+        : 'Your document needs improvement';
+
+    // ---------- Ringkasan skor ----------
+    final summary = <Widget>[
+      SoftCard(
+        gradient: c.heroGradient,
+        radius: 24,
+        padding: const EdgeInsets.all(20),
+        child: Row(
+          children: [
+            ScoreRing(
+              score: score,
+              size: 112,
+              stroke: 10,
+              color: Colors.white,
+              trackColor: Colors.white.withValues(alpha: .25),
+              textColor: Colors.white,
+            ),
+            const SizedBox(width: 18),
+            Expanded(
               child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  SizedBox(
-                    width: 126,
-                    height: 126,
-                    child: Stack(
-                      alignment: Alignment.center,
-                      children: [
-                        SizedBox(
-                          width: 126,
-                          height: 126,
-                          child: CircularProgressIndicator(
-                            value: score / 100,
-                            strokeWidth: 10,
-                            strokeCap: StrokeCap.round,
-                            backgroundColor:
-                                context.appColors.secondaryLight,
-                          ),
-                        ),
-                        Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(
-                              '$score',
-                              style: TextStyle(
-                                color: context.appColors.textPrimary,
-                                fontSize: 38,
-                                fontWeight: FontWeight.w800,
-                              ),
-                            ),
-                            Text(
-                              '/100',
-                              style: TextStyle(
-                                color: context.appColors.textSecondary,
-                                fontSize: 12,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 14),
                   Text(
-                    score >= 90
-                        ? 'Excellent'
-                        : score >= 75
-                            ? 'Your document is looking good'
-                            : 'Your document needs improvement',
-                    textAlign: TextAlign.center,
+                    verdict,
                     style: const TextStyle(
+                      color: Colors.white,
                       fontSize: 17,
                       fontWeight: FontWeight.w800,
+                      height: 1.25,
                     ),
                   ),
-                  const SizedBox(height: 5),
+                  const SizedBox(height: 8),
                   Text(
-                    'Hasil berdasarkan data pemeriksaan yang diterima.',
-                    textAlign: TextAlign.center,
+                    document.fileName,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
                     style: TextStyle(
-                      color: context.appColors.textSecondary,
-                      fontSize: 12,
+                      color: Colors.white.withValues(alpha: .92),
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
-                  const SizedBox(height: 18),
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Expanded(
-                        child: ScoreCard(
-                          title: 'Document Format',
-                          score: formatScore,
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: semanticAvailable
-                            ? ScoreCard(
-                                title: 'Structure & Content',
-                                score: semanticScore,
-                              )
-                            : _ScoreUnavailableCard(
-                                title: 'Structure & Content',
-                              ),
-                      ),
-                    ],
+                  const SizedBox(height: 4),
+                  Text(
+                    '${document.displayDocumentType} · ${document.uploadDate}',
+                    style: TextStyle(
+                      color: Colors.white.withValues(alpha: .8),
+                      fontSize: 11.5,
+                    ),
                   ),
                 ],
               ),
             ),
-          ),
-
-          const SizedBox(height: 23),
-
-          // Daftar temuan pemeriksaan tetap dipertahankan.
-          Row(
-            children: [
-              const Expanded(
-                child: Text(
-                  'Findings',
-                  style: TextStyle(
-                    fontSize: 17,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-              ),
-              Text(
-                '${result.findings.length} findings',
-                style: TextStyle(
-                  color: context.appColors.textSecondary,
-                  fontSize: 12,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-
-          if (result.findings.isEmpty)
-            const Padding(
-              padding: EdgeInsets.symmetric(vertical: 20),
-              child: Text(
-                'Belum ada temuan yang diterima dari server.',
-                textAlign: TextAlign.center,
-              ),
-            )
-          else
-            ...result.findings.map(
-              (finding) => Padding(
-                padding: const EdgeInsets.only(bottom: 10),
-                child: FindingCard(finding: finding),
-              ),
+          ],
+        ),
+      ),
+      const SizedBox(height: 14),
+      Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            child: ScoreCard(
+              title: 'Document Format',
+              score: formatScore,
+              icon: Icons.straighten_rounded,
+              color: c.primaryDark,
+              weight: '40%',
             ),
-
-          const SizedBox(height: 10),
-          ElevatedButton.icon(
-            onPressed: () {
-              Navigator.of(context).pushAndRemoveUntil(
-                MaterialPageRoute<void>(
-                  builder: (_) => const UploadScreen(),
-                ),
-                (route) => route.isFirst,
-              );
-            },
-            icon: const Icon(Icons.refresh_rounded),
-            label: const Text('Review Another Document'),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: ScoreCard(
+              title: 'Structure & Content',
+              score: semanticScore,
+              icon: Icons.psychology_alt_outlined,
+              color: c.warning,
+              weight: '60%',
+            ),
           ),
         ],
       ),
-    );
-  }
-}
+    ];
 
-class _ScoreUnavailableCard extends StatelessWidget {
-  const _ScoreUnavailableCard({
-    required this.title,
-  });
-
-  final String title;
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+    // ---------- Daftar temuan ----------
+    final findings = <Widget>[
+      SectionHeader(title: 'Findings (${result.findings.length})'),
+      const SizedBox(height: 10),
+      if (result.findings.isNotEmpty) ...[
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            children: [
+              PillChip(
+                label: 'All',
+                selected: _filter == null,
+                onTap: () => setState(() => _filter = null),
+              ),
+              for (final (type, label, color) in [
+                ('error', 'Errors', c.error),
+                ('warning', 'Warnings', c.warning),
+                ('success', 'Passed', c.success),
+              ]) ...[
+                const SizedBox(width: 8),
+                PillChip(
+                  label: '$label ${count(type)}',
+                  color: color,
+                  selected: _filter == type,
+                  onTap: () => setState(() => _filter = type),
+                ),
+              ],
+            ],
+          ),
+        ),
+        const SizedBox(height: 12),
+      ],
+      if (result.findings.isEmpty)
+        const EmptyState(
+          icon: Icons.inbox_outlined,
+          message: 'Belum ada temuan yang diterima dari server.',
+        )
+      else if (filtered.isEmpty)
+        const EmptyState(
+          icon: Icons.filter_alt_off_outlined,
+          message: 'Tidak ada temuan untuk filter ini.',
+        )
+      else
+        // Tablet: temuan 2 kolom; HP & desktop (kolom kanan): menyesuaikan.
+        ResponsiveWrapGrid(
+          minItemWidth: 320,
+          maxColumns: 2,
+          spacing: 10,
           children: [
-            Text(
-              title,
-              style: const TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-            const SizedBox(height: 12),
-            const Text(
-              '—',
-              style: TextStyle(
-                fontSize: 28,
-                fontWeight: FontWeight.w800,
-              ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              'Skor belum tersedia',
-              style: TextStyle(
-                color: context.appColors.textSecondary,
-                fontSize: 11,
-              ),
-            ),
+            for (final finding in filtered) FindingCard(finding: finding),
           ],
+        ),
+    ];
+
+    final wide = context.isExpanded;
+
+    // ---------- Desktop: dua kolom ----------
+    if (wide) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('Review Results')),
+        body: SafeArea(
+          child: MobileFrame(
+            maxWidth: context.contentMaxWidth,
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Kolom kiri: ringkasan skor tetap terlihat.
+                SizedBox(
+                  width: 400,
+                  child: ListView(
+                    padding: const EdgeInsets.fromLTRB(28, 6, 14, 24),
+                    children: [
+                      ...summary,
+                      const SizedBox(height: 18),
+                      _reviewAnotherButton(),
+                    ],
+                  ),
+                ),
+                // Kolom kanan: daftar temuan.
+                Expanded(
+                  child: ListView(
+                    padding: const EdgeInsets.fromLTRB(14, 6, 28, 24),
+                    children: findings,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
+    // ---------- HP & tablet: satu kolom ----------
+    return Scaffold(
+      appBar: AppBar(title: const Text('Review Results')),
+      body: SafeArea(
+        bottom: false,
+        child: MobileFrame(
+          maxWidth: context.contentMaxWidth,
+          child: ListView(
+            padding: const EdgeInsets.fromLTRB(22, 6, 22, 24),
+            children: [...summary, const SizedBox(height: 24), ...findings],
+          ),
+        ),
+      ),
+      bottomNavigationBar: SafeArea(
+        top: false,
+        child: Align(
+          heightFactor: 1,
+          child: ConstrainedBox(
+            constraints: BoxConstraints(maxWidth: context.contentMaxWidth),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(22, 8, 22, 14),
+              child: _reviewAnotherButton(),
+            ),
+          ),
         ),
       ),
     );
