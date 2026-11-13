@@ -39,8 +39,8 @@
 
   color-scheme: light;
   font-family:
-    'Segoe UI', system-ui, -apple-system, Roboto, 'Helvetica Neue', Arial,
-    sans-serif;
+    'Poppins', 'Segoe UI', system-ui, -apple-system, Roboto, 'Helvetica Neue',
+    Arial, sans-serif;
   color: var(--text);
   background: var(--bg);
   -webkit-font-smoothing: antialiased;
@@ -52,7 +52,12 @@
 
 body {
   margin: 0;
-  background: var(--bg);
+  /* Latar biru lembut dengan cahaya gradasi, seperti referensi desain app. */
+  background:
+    radial-gradient(circle at 100% 0%, #dff0fd 0, rgba(223, 240, 253, 0) 38%),
+    radial-gradient(circle at 0% 100%, #fff4e3 0, rgba(255, 244, 227, 0) 32%),
+    var(--bg);
+  background-attachment: fixed;
   font-size: 14px;
   line-height: 1.5;
 }
@@ -104,6 +109,14 @@ h3 {
   position: sticky;
   top: 0;
   height: 100vh;
+  overflow-y: auto;
+}
+
+/* Layar pendek: kartu ilustrasi sidebar disembunyikan. */
+@media (max-height: 640px) {
+  .side-promo {
+    display: none;
+  }
 }
 
 .brand {
@@ -577,9 +590,32 @@ a.stat-card:hover {
 
 .filters {
   display: grid;
-  grid-template-columns: minmax(220px, 2fr) repeat(3, minmax(150px, 1fr));
+  grid-template-columns: repeat(4, minmax(150px, 1fr));
   gap: 12px;
   margin-bottom: 16px;
+}
+
+/* Kolom pencarian selalu satu baris penuh, filter lain di bawahnya. */
+.filters .filter-search {
+  grid-column: 1 / -1;
+}
+
+/* Tanda "bisa diklik" pada kartu statistik */
+.stat-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--stat-color, var(--primary));
+  opacity: 0.85;
+  position: relative;
+  z-index: 1;
+}
+
+a.stat-card:hover .stat-cta {
+  opacity: 1;
+  gap: 7px;
 }
 
 .table-wrap {
@@ -1039,6 +1075,383 @@ a.stat-card:hover {
 }
 
 /* =========================================================
+   Elemen visual dari desain app (ilustrasi, chip, banner)
+   ========================================================= */
+
+.doc-type-icon {
+  display: inline-grid;
+  place-items: center;
+  flex-shrink: 0;
+}
+
+.type-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 4px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 11.5px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+/* Chip pil filter */
+.chip-row {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+  margin-bottom: 16px;
+  scrollbar-width: thin;
+}
+
+.pill-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  flex-shrink: 0;
+  padding: 6px 16px 6px 7px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--card);
+  font-weight: 600;
+  font-size: 12.5px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.pill-chip:not(:has(.pill-chip-icon)) {
+  padding-left: 16px;
+}
+
+.pill-chip:hover:not(.selected) {
+  border-color: var(--primary-light);
+  background: var(--primary-soft);
+}
+
+.pill-chip.selected {
+  color: #fff;
+}
+
+.pill-chip-icon {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+}
+
+/* Ilustrasi gumpalan + kertas + lencana */
+.blob-illus {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.blob-illus > span {
+  position: absolute;
+  display: block;
+}
+
+.blob-dot {
+  border-radius: 50%;
+}
+
+.blob-paper {
+  background: #fff;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.1);
+  display: flex !important;
+  flex-direction: column;
+}
+
+.blob-line {
+  display: block;
+  border-radius: 99px;
+  background: var(--primary-light);
+}
+
+.blob-badge {
+  border-radius: 50%;
+  border: 3px solid #fff;
+  display: grid !important;
+  place-items: center;
+}
+
+/* Banner gradasi (seperti banner Home app) */
+.hero-banner {
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  padding: 26px 28px;
+  border-radius: 28px;
+  margin-bottom: 22px;
+  color: #fff;
+  background: linear-gradient(135deg, var(--hero-start), var(--hero-end));
+  box-shadow: 0 14px 30px rgba(23, 102, 176, 0.22);
+}
+
+.hero-banner::after {
+  content: '';
+  position: absolute;
+  width: 260px;
+  height: 260px;
+  border-radius: 50%;
+  right: -60px;
+  bottom: -120px;
+  background: rgba(255, 255, 255, 0.08);
+  pointer-events: none;
+}
+
+.hero-banner .hero-text {
+  flex: 1;
+  min-width: 0;
+  position: relative;
+  z-index: 1;
+}
+
+.hero-banner .eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  opacity: 0.9;
+}
+
+.hero-banner h1 {
+  font-size: 26px;
+  font-weight: 800;
+  margin: 4px 0 8px;
+  letter-spacing: -0.3px;
+}
+
+.hero-banner p {
+  margin: 0 0 18px;
+  opacity: 0.9;
+  max-width: 560px;
+}
+
+.hero-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.btn-white {
+  background: #fff;
+  color: var(--hero-end);
+}
+
+.btn-white:hover:not(:disabled) {
+  background: #eaf5fe;
+  color: var(--hero-end);
+}
+
+.btn-outline-white {
+  background: rgba(255, 255, 255, 0.14);
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.45);
+}
+
+.btn-outline-white:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.24);
+}
+
+.btn-accent {
+  background: var(--warning-strong);
+  color: #fff;
+}
+
+.btn-accent:hover:not(:disabled) {
+  background: #e08a08;
+}
+
+/* Kotak jenis dokumen (seperti kartu kategori di app) */
+.section-title {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 0 0 12px;
+}
+
+.section-title h2 {
+  font-size: 17px;
+  font-weight: 800;
+}
+
+.section-title p {
+  margin: 2px 0 0;
+  color: var(--text-2);
+  font-size: 12.5px;
+}
+
+.type-tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  gap: 12px;
+  margin-bottom: 22px;
+}
+
+.type-tile {
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px;
+  border-radius: 20px;
+  background: var(--card);
+  box-shadow: var(--shadow);
+  color: inherit;
+  border: 1.5px solid transparent;
+  transition: transform 0.15s, border-color 0.15s;
+}
+
+.type-tile:hover {
+  text-decoration: none;
+  transform: translateY(-2px);
+  border-color: var(--tile-color);
+}
+
+.type-tile::after {
+  content: '';
+  position: absolute;
+  right: -18px;
+  top: -18px;
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: var(--tile-color);
+  opacity: 0.08;
+}
+
+.type-tile .name {
+  font-weight: 700;
+  font-size: 13.5px;
+}
+
+.type-tile .meta {
+  font-size: 12px;
+  color: var(--text-2);
+}
+
+/* Kartu statistik: ikon bulat berwarna penuh */
+.stat-card {
+  position: relative;
+  overflow: hidden;
+}
+
+.stat-card::after {
+  content: '';
+  position: absolute;
+  right: -26px;
+  bottom: -26px;
+  width: 86px;
+  height: 86px;
+  border-radius: 50%;
+  background: var(--stat-color, var(--primary));
+  opacity: 0.07;
+}
+
+.stat-icon.solid {
+  color: #fff;
+  border-radius: 50%;
+  box-shadow: 0 6px 14px var(--stat-shadow, rgba(30, 136, 214, 0.25));
+}
+
+/* Kartu promosi di sidebar */
+.side-promo {
+  margin: 18px 4px 16px;
+  padding: 16px;
+  border-radius: 20px;
+  background: linear-gradient(160deg, var(--primary-soft), #fff4e3);
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.side-promo strong {
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.side-promo p {
+  margin: 0;
+  font-size: 11.5px;
+  color: var(--text-2);
+}
+
+/* Banner detail dokumen dengan ilustrasi */
+.hero-card {
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 14px 30px rgba(23, 102, 176, 0.2);
+}
+
+.hero-card .hero-illus {
+  margin-left: auto;
+}
+
+.login-panel .blob-illus {
+  align-self: center;
+  margin: 8px 0;
+}
+
+/* Tombol kembali */
+.page-nav {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+  margin-bottom: 18px;
+}
+
+.back-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px 8px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--card);
+  color: var(--text);
+  font-weight: 600;
+  font-size: 13px;
+  cursor: pointer;
+  box-shadow: var(--shadow);
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.back-btn:hover {
+  background: var(--primary-soft);
+  border-color: var(--primary-light);
+  color: var(--primary-dark);
+}
+
+/* Info filter aktif */
+.filter-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding: 10px 14px;
+  margin-bottom: 14px;
+  border-radius: var(--radius-sm);
+  background: var(--primary-soft);
+  color: var(--primary-dark);
+  font-size: 13px;
+}
+
+.filter-info .btn {
+  margin-left: auto;
+}
+
+/* =========================================================
    Responsive
    ========================================================= */
 
@@ -1115,8 +1528,32 @@ a.stat-card:hover {
   }
 }
 
+/* Ilustrasi besar disembunyikan di layar sempit agar teks lega. */
+@media (max-width: 760px) {
+  .hero-banner .blob-illus,
+  .hero-card .hero-illus {
+    display: none;
+  }
+
+  .hero-banner {
+    padding: 22px;
+  }
+
+  .hero-banner h1 {
+    font-size: 22px;
+  }
+}
+
 /* HP */
 @media (max-width: 640px) {
+  .type-tiles {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .type-tile {
+    padding: 12px;
+  }
+
   .page-header h1 {
     font-size: 22px;
   }

@@ -17,6 +17,7 @@ import {
 import { Bar, Chart, Doughnut } from 'react-chartjs-2'
 import {
   AlertTriangle,
+  ArrowRight,
   BrainCircuit,
   CheckCircle2,
   ClipboardCheck,
@@ -25,8 +26,15 @@ import {
   Users,
 } from 'lucide-react'
 import { getStats } from '../api/dashboard'
-import { EmptyState, ErrorAlert, Spinner } from '../components/ui'
-import { COLORS } from '../utils/constants'
+import { useAuth } from '../auth/AuthContext'
+import {
+  BlobIllustration,
+  DocTypeIcon,
+  EmptyState,
+  ErrorAlert,
+  Spinner,
+} from '../components/ui'
+import { COLORS, documentType } from '../utils/constants'
 import { formatNumber, formatShortDate } from '../utils/format'
 import { useAsync } from '../utils/useAsync'
 
@@ -53,24 +61,63 @@ const gridScale = {
 }
 
 function StatCard({ icon: Icon, color, label, value, hint, to }) {
+  const style = { '--stat-color': color, '--stat-shadow': `${color}55` }
   const body = (
     <>
       <div className="stat-top">
         <span className="stat-label">{label}</span>
-        <span className="stat-icon" style={{ background: `${color}1f`, color }}>
-          <Icon size={20} />
+        <span
+          className="stat-icon solid"
+          style={{ background: `linear-gradient(135deg, ${color}cc, ${color})` }}
+        >
+          <Icon size={19} />
         </span>
       </div>
       <div className="stat-value">{value}</div>
       {hint && <div className="stat-hint">{hint}</div>}
+      {to && (
+        <span className="stat-cta">
+          Lihat data <ArrowRight size={13} />
+        </span>
+      )}
     </>
   )
   return to ? (
-    <Link to={to} className="card stat-card">
+    <Link to={to} className="card stat-card" style={style}>
       {body}
     </Link>
   ) : (
-    <div className="card stat-card">{body}</div>
+    <div className="card stat-card" style={style}>
+      {body}
+    </div>
+  )
+}
+
+function TypeTiles({ items }) {
+  return (
+    <div className="type-tiles">
+      {items.map((item) => {
+        const info = documentType(item.document_type)
+        return (
+          <Link
+            key={item.document_type}
+            to={`/documents?document_type=${item.document_type}`}
+            className="type-tile"
+            style={{ '--tile-color': info.color }}
+            title={info.label}
+          >
+            <DocTypeIcon type={item.document_type} size={42} />
+            <div style={{ minWidth: 0 }}>
+              <div className="name">{info.short}</div>
+              <div className="meta">
+                {item.count} dokumen
+                {item.average_score !== null && ` · rata-rata ${item.average_score}`}
+              </div>
+            </div>
+          </Link>
+        )
+      })}
+    </div>
   )
 }
 
@@ -89,6 +136,7 @@ function ChartCard({ title, subtitle, small, children }) {
 }
 
 export default function OverviewPage() {
+  const { user } = useAuth()
   const [weeks, setWeeks] = useState(8)
   const { data, loading, error, reload } = useAsync(() => getStats(weeks), [weeks])
 
@@ -97,29 +145,28 @@ export default function OverviewPage() {
 
   const { overview, score_by_type, score_distribution, trend, top_findings } = data
   const pending = overview.review.pending
+  const firstName = (user?.name || 'Admin').split(/\s+/)[0]
 
   return (
     <>
-      <div className="page-header">
-        <div>
-          <h1>Ringkasan</h1>
-          <p>Statistik hasil pemeriksaan format karya tulis mahasiswa.</p>
+      {/* Banner sapaan, seperti banner Home di app mobile */}
+      <section className="hero-banner">
+        <div className="hero-text">
+          <span className="eyebrow">Selamat datang kembali</span>
+          <h1>Halo, {firstName}</h1>
+          <p>
+            {pending > 0
+              ? `Ada ${pending} hasil pemeriksaan AI yang menunggu review. Validasi atau koreksi sebelum dipakai mahasiswa.`
+              : 'Semua hasil pemeriksaan AI sudah direview. Pantau statistik terbaru di bawah ini.'}
+          </p>
+          <div className="hero-actions">
+            <Link to="/documents?review_status=pending" className="btn btn-white">
+              Mulai review <ArrowRight size={16} />
+            </Link>
+          </div>
         </div>
-        <div className="field" style={{ minWidth: 180 }}>
-          <label htmlFor="weeks">Periode tren</label>
-          <select
-            id="weeks"
-            className="select"
-            value={weeks}
-            onChange={(e) => setWeeks(Number(e.target.value))}
-          >
-            <option value={4}>4 minggu terakhir</option>
-            <option value={8}>8 minggu terakhir</option>
-            <option value={12}>12 minggu terakhir</option>
-            <option value={26}>26 minggu terakhir</option>
-          </select>
-        </div>
-      </div>
+        <BlobIllustration size={150} blob="rgba(255,255,255,.22)" />
+      </section>
 
       {error && (
         <div style={{ marginBottom: 16 }}>
@@ -142,13 +189,15 @@ export default function OverviewPage() {
           label="Mahasiswa"
           value={formatNumber(overview.total_students)}
           hint="Akun terdaftar"
+          to="/students"
         />
         <StatCard
           icon={Gauge}
           color={COLORS.accent}
           label="Rata-rata skor"
           value={formatNumber(overview.average_score)}
-          hint="Skala 0–100"
+          hint="Skala 0–100 · urut dari skor terendah"
+          to="/documents?ordering=score_low"
         />
         <StatCard
           icon={CheckCircle2}
@@ -156,6 +205,7 @@ export default function OverviewPage() {
           label="Memenuhi standar"
           value={formatNumber(overview.passing_rate, '%')}
           hint={`${overview.passing_count} dokumen skor ≥ ${overview.passing_score}`}
+          to={`/documents?score_min=${overview.passing_score}`}
         />
         <StatCard
           icon={AlertTriangle}
@@ -163,6 +213,7 @@ export default function OverviewPage() {
           label="Perlu perbaikan"
           value={formatNumber(overview.needs_improvement)}
           hint={`Skor di bawah ${overview.passing_score}`}
+          to={`/documents?score_max=${overview.passing_score - 1}&ordering=score_low`}
         />
         <StatCard
           icon={BrainCircuit}
@@ -170,6 +221,7 @@ export default function OverviewPage() {
           label="Analisis AI berhasil"
           value={formatNumber(overview.ai_success_rate, '%')}
           hint="Dokumen dengan skor semantik"
+          to="/documents?ai=success"
         />
         <StatCard
           icon={ClipboardCheck}
@@ -179,6 +231,37 @@ export default function OverviewPage() {
           hint={`${overview.review.validated} tervalidasi · ${overview.review.corrected} dikoreksi`}
           to="/documents?review_status=pending"
         />
+      </div>
+
+      <div className="section-title">
+        <div>
+          <h2>Jenis dokumen</h2>
+          <p>Klik untuk melihat dokumen per jenis (Panduan Penulisan Polinela).</p>
+        </div>
+      </div>
+      <TypeTiles items={score_by_type} />
+
+      <div className="section-title">
+        <div>
+          <h2>Statistik</h2>
+          <p>Tren dan sebaran hasil pemeriksaan.</p>
+        </div>
+        <div className="field" style={{ minWidth: 180 }}>
+          <label htmlFor="weeks" className="small muted">
+            Periode tren
+          </label>
+          <select
+            id="weeks"
+            className="select"
+            value={weeks}
+            onChange={(e) => setWeeks(Number(e.target.value))}
+          >
+            <option value={4}>4 minggu terakhir</option>
+            <option value={8}>8 minggu terakhir</option>
+            <option value={12}>12 minggu terakhir</option>
+            <option value={26}>26 minggu terakhir</option>
+          </select>
+        </div>
       </div>
 
       <div className="chart-grid">
@@ -195,7 +278,8 @@ export default function OverviewPage() {
                   type: 'bar',
                   label: 'Dokumen diunggah',
                   data: trend.map((t) => t.uploads),
-                  backgroundColor: COLORS.primarySoft,
+                  backgroundColor: 'rgba(92, 198, 247, 0.55)',
+                  hoverBackgroundColor: COLORS.primary,
                   borderRadius: 8,
                   yAxisID: 'y',
                   order: 2,
@@ -236,12 +320,13 @@ export default function OverviewPage() {
         <ChartCard title="Rata-rata skor per jenis dokumen" subtitle="Jenis Panduan Penulisan Polinela">
           <Bar
             data={{
-              labels: score_by_type.map((t) => t.label),
+              labels: score_by_type.map((t) => documentType(t.document_type).short),
               datasets: [
                 {
                   label: 'Rata-rata skor',
                   data: score_by_type.map((t) => t.average_score),
-                  backgroundColor: COLORS.primary,
+                  // Warna batang = warna jenis dokumen (sama dengan app).
+                  backgroundColor: score_by_type.map((t) => documentType(t.document_type).color),
                   borderRadius: 8,
                   maxBarThickness: 28,
                 },

@@ -11,7 +11,7 @@ import {
   Sparkles,
 } from 'lucide-react'
 import { useAuth } from '../auth/AuthContext'
-import { ErrorAlert } from '../components/ui'
+import { BlobIllustration, ErrorAlert } from '../components/ui'
 
 const FEATURES = [
   { icon: BarChart3, text: 'Statistik hasil pemeriksaan format karya tulis' },
@@ -54,6 +54,7 @@ export default function LoginPage() {
         <div className="row" style={{ fontWeight: 800, fontSize: 18 }}>
           <BookOpenCheck size={24} /> ThesisFormat
         </div>
+        <BlobIllustration size={230} icon={ShieldCheck} blob="rgba(255,255,255,.22)" />
         <h2>Pantau dan validasi hasil pemeriksaan format karya tulis mahasiswa.</h2>
         <ul>
           {FEATURES.map(({ icon: Icon, text }) => (

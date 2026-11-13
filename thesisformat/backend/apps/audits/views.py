@@ -3,6 +3,7 @@ Endpoint Web Dashboard (khusus admin / staf).
 
     GET   /api/v1/admin/stats/                  statistik untuk halaman Ringkasan
     GET   /api/v1/admin/documents/              daftar dokumen (filter + halaman)
+    GET   /api/v1/admin/students/               daftar mahasiswa + ringkasan dokumen
     GET   /api/v1/admin/documents/<id>/         detail dokumen + seluruh temuan
     PATCH /api/v1/admin/documents/<id>/review/  validasi / koreksi hasil AI
 
@@ -14,7 +15,7 @@ from collections import Counter
 from datetime import timedelta
 
 from django.contrib.auth import get_user_model
-from django.db.models import F, Q
+from django.db.models import Avg, Count, F, Max, Q
 from django.db.models.functions import Coalesce
 from django.utils import timezone
 from rest_framework import serializers, status
@@ -135,8 +136,14 @@ class AdminStatsView(APIView):
         now = timezone.localtime()
         week_ago = now - timedelta(days=7)
 
-        scored = []          # (document, result) yang punya hasil pemeriksaan
+        # (document, result) yang punya hasil pemeriksaan tersimpan (AuditResult).
+        # Dokumen lama tanpa AuditResult tidak dihitung agar angka statistik
+        # sama dengan hasil filter di halaman Dokumen (filter skor & AI
+        # memakai AuditResult) dan semua dokumen yang dihitung bisa direview.
+        scored = []
         for document in documents:
+            if getattr(document, "audit_result", None) is None:
+                continue
             result = get_document_result(document)
             if result is not None:
                 scored.append((document, result))
@@ -283,6 +290,26 @@ class AdminDocumentListView(APIView):
         elif review_status:
             queryset = queryset.filter(audit_result__review_status=review_status)
 
+        # Rentang skor (skor koreksi admin jika ada, selain itu skor sistem).
+        for param, lookup in (("score_min", "gte"), ("score_max", "lte")):
+            value = params.get(param)
+            if value not in (None, ""):
+                try:
+                    queryset = queryset.filter(**{f"effective_score__{lookup}": int(value)})
+                except ValueError:
+                    pass
+
+        # Status analisis AI (Jalur B).
+        ai = params.get("ai")
+        if ai == "success":
+            queryset = queryset.filter(
+                audit_result__recommendations__has_semantic_score=True,
+            )
+        elif ai == "failed":
+            queryset = queryset.filter(audit_result__isnull=False).exclude(
+                audit_result__recommendations__has_semantic_score=True,
+            )
+
         ordering = self.ORDERING.get(params.get("ordering"), self.ORDERING["newest"])
         if ordering[0].lstrip("-") == "effective_score":
             # Dokumen tanpa skor selalu di bagian bawah.
@@ -315,6 +342,56 @@ class AdminDocumentListView(APIView):
             "page_size": page_size,
             "total_pages": total_pages,
         })
+
+
+class AdminStudentListView(APIView):
+    """Daftar mahasiswa (akun non-staf) beserta ringkasan dokumennya."""
+
+    permission_classes = [IsAdminUser]
+
+    def get(self, request):
+        queryset = User.objects.filter(is_staff=False).annotate(
+            document_count=Count("documents", distinct=True),
+            last_upload=Max("documents__uploaded_at"),
+            average_score=Avg(
+                Coalesce(
+                    "documents__audit_result__corrected_score",
+                    "documents__audit_result__final_score",
+                )
+            ),
+            pending_review=Count(
+                "documents__audit_result",
+                filter=Q(documents__audit_result__review_status=AuditResult.ReviewStatus.PENDING),
+                distinct=True,
+            ),
+        )
+
+        search = request.query_params.get("search", "").strip()
+        if search:
+            queryset = queryset.filter(
+                Q(email__icontains=search)
+                | Q(first_name__icontains=search)
+                | Q(last_name__icontains=search)
+                | Q(username__icontains=search)
+            )
+
+        queryset = queryset.order_by(F("last_upload").desc(nulls_last=True), "first_name")
+
+        results = [
+            {
+                **_student(user),
+                "date_joined": user.date_joined,
+                "document_count": user.document_count,
+                "last_upload": user.last_upload,
+                "average_score": (
+                    None if user.average_score is None
+                    else round(float(user.average_score), 1)
+                ),
+                "pending_review": user.pending_review,
+            }
+            for user in queryset
+        ]
+        return Response({"results": results, "count": len(results)})
 
 
 class AdminDocumentDetailView(APIView):

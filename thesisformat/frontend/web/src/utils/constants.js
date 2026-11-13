@@ -1,12 +1,12 @@
 // Disamakan dengan backend (Document.DocumentType) dan app mobile
 // (lib/models/document_type.dart + DocTypeStyle).
 export const DOCUMENT_TYPES = [
-  { id: 'praktik', label: 'Laporan Praktik', color: '#1E88D6' },
-  { id: 'pkl', label: 'Laporan PKL/Magang', color: '#F59E1B' },
-  { id: 'tugas_akhir', label: 'Laporan Tugas Akhir/Skripsi', color: '#7C6CF2' },
-  { id: 'proposal_pengabdian', label: 'Proposal Pengabdian Masyarakat', color: '#1FA874' },
-  { id: 'proposal_penelitian', label: 'Proposal Penelitian', color: '#0F9F8F' },
-  { id: 'makalah_ilmiah', label: 'Makalah Ilmiah', color: '#DB2777' },
+  { id: 'praktik', label: 'Laporan Praktik', short: 'Praktik', color: '#1E88D6' },
+  { id: 'pkl', label: 'Laporan PKL/Magang', short: 'PKL/Magang', color: '#F59E1B' },
+  { id: 'tugas_akhir', label: 'Laporan Tugas Akhir/Skripsi', short: 'Tugas Akhir', color: '#7C6CF2' },
+  { id: 'proposal_pengabdian', label: 'Proposal Pengabdian Masyarakat', short: 'Pengabdian', color: '#1FA874' },
+  { id: 'proposal_penelitian', label: 'Proposal Penelitian', short: 'Penelitian', color: '#0F9F8F' },
+  { id: 'makalah_ilmiah', label: 'Makalah Ilmiah', short: 'Makalah', color: '#DB2777' },
 ]
 
 export function documentType(id) {
@@ -14,6 +14,7 @@ export function documentType(id) {
     DOCUMENT_TYPES.find((type) => type.id === id) ?? {
       id,
       label: id || 'Tidak diketahui',
+      short: id || 'Lainnya',
       color: '#66778A',
     }
   )

@@ -1,11 +1,22 @@
 import { useEffect, useState } from 'react'
-import { NavLink, Outlet, useLocation } from 'react-router-dom'
-import { BookOpenCheck, FileText, LayoutDashboard, LogOut, Menu, X } from 'lucide-react'
+import { Link, NavLink, Outlet, useLocation } from 'react-router-dom'
+import {
+  BookOpenCheck,
+  ClipboardCheck,
+  FileText,
+  LayoutDashboard,
+  LogOut,
+  Menu,
+  Users,
+  X,
+} from 'lucide-react'
 import { useAuth } from '../auth/AuthContext'
+import { BlobIllustration } from './ui'
 
 const NAV_ITEMS = [
   { to: '/', label: 'Ringkasan', icon: LayoutDashboard, end: true },
   { to: '/documents', label: 'Dokumen', icon: FileText },
+  { to: '/students', label: 'Mahasiswa', icon: Users },
 ]
 
 export default function Layout() {
@@ -39,6 +50,15 @@ export default function Layout() {
             </NavLink>
           ))}
         </nav>
+
+        <div className="side-promo">
+          <BlobIllustration size={88} icon={ClipboardCheck} />
+          <strong>Hasil AI perlu dicek?</strong>
+          <p>Validasi atau koreksi sebelum dipakai mahasiswa.</p>
+          <Link to="/documents?review_status=pending" className="btn btn-accent btn-sm">
+            Lihat antrean
+          </Link>
+        </div>
 
         <div className="sidebar-footer">
           <div className="user-chip">

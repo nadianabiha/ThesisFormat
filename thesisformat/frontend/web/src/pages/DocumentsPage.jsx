@@ -1,9 +1,32 @@
 import { useEffect, useState } from 'react'
-import { Link, useNavigate, useSearchParams } from 'react-router-dom'
-import { ChevronLeft, ChevronRight, FileSearch, Search } from 'lucide-react'
+import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom'
+import {
+  ChevronLeft,
+  ChevronRight,
+  FileSearch,
+  Filter,
+  LayoutGrid,
+  Search,
+  X,
+} from 'lucide-react'
 import { getDocuments } from '../api/dashboard'
-import { EmptyState, ErrorAlert, ReviewBadge, ScoreRing, Spinner, TypeBadge } from '../components/ui'
-import { DOCUMENT_TYPES, REVIEW_STATUS } from '../utils/constants'
+import PageNav from '../components/PageNav'
+import {
+  DocTypeIcon,
+  EmptyState,
+  ErrorAlert,
+  PillChip,
+  ReviewBadge,
+  ScoreRing,
+  Spinner,
+  TypeBadge,
+  typeIcon,
+} from '../components/ui'
+import {
+  DOCUMENT_TYPES,
+  REVIEW_STATUS,
+  documentType as documentTypeInfo,
+} from '../utils/constants'
 import { formatDateTime } from '../utils/format'
 import { useAsync } from '../utils/useAsync'
 
@@ -16,15 +39,41 @@ const ORDERING = [
   { value: 'score_high', label: 'Skor tertinggi' },
 ]
 
+// Pilihan rentang skor (dipakai juga oleh kartu di halaman Ringkasan).
+const SCORE_FILTERS = [
+  { value: '', label: 'Semua skor' },
+  { value: 'pass', label: 'Memenuhi standar (≥ 75)', min: '75', max: '' },
+  { value: 'fail', label: 'Perlu perbaikan (< 75)', min: '', max: '74' },
+  { value: 'excellent', label: 'Sangat baik (≥ 90)', min: '90', max: '' },
+]
+
+const AI_FILTERS = {
+  success: 'Analisis AI berhasil',
+  failed: 'Analisis AI gagal',
+}
+
 export default function DocumentsPage() {
   const navigate = useNavigate()
+  const location = useLocation()
   const [params, setParams] = useSearchParams()
 
   const search = params.get('search') ?? ''
   const documentType = params.get('document_type') ?? ''
   const reviewStatus = params.get('review_status') ?? ''
   const ordering = params.get('ordering') ?? 'newest'
+  const scoreMin = params.get('score_min') ?? ''
+  const scoreMax = params.get('score_max') ?? ''
+  const ai = params.get('ai') ?? ''
   const page = Number(params.get('page') ?? 1)
+
+  const scoreFilter =
+    SCORE_FILTERS.find((f) => f.value && f.min === scoreMin && f.max === scoreMax) ??
+    (scoreMin || scoreMax
+      ? { value: 'custom', label: `Skor ${scoreMin || 0}–${scoreMax || 100}` }
+      : SCORE_FILTERS[0])
+
+  // Halaman asal (mis. /students) agar label tombol Kembali sesuai.
+  const cameFrom = location.state?.from
 
   // Kolom pencarian: tunggu pengguna berhenti mengetik (300 ms).
   const [searchInput, setSearchInput] = useState(search)
@@ -43,7 +92,8 @@ export default function DocumentsPage() {
       else next.set(key, value)
     })
     if (resetPage && !('page' in changes)) next.delete('page')
-    setParams(next, { replace: true })
+    // state ikut dibawa agar tombol Kembali tetap ke halaman asal.
+    setParams(next, { replace: true, state: location.state })
   }
 
   const { data, loading, error, reload } = useAsync(
@@ -53,17 +103,36 @@ export default function DocumentsPage() {
         document_type: documentType,
         review_status: reviewStatus,
         ordering,
+        score_min: scoreMin,
+        score_max: scoreMax,
+        ai,
         page,
         page_size: PAGE_SIZE,
       }),
-    [search, documentType, reviewStatus, ordering, page],
+    [search, documentType, reviewStatus, ordering, scoreMin, scoreMax, ai, page],
   )
 
   const results = data?.results ?? []
-  const open = (id) => navigate(`/documents/${id}`)
+
+  // Alamat daftar saat ini (lengkap dengan filter), dikirim ke halaman
+  // detail agar tombol "Kembali" membuka daftar yang sama.
+  const listUrl = `/documents${location.search}`
+  const open = (id) => navigate(`/documents/${id}`, { state: { from: listUrl } })
+
+  // Ringkasan filter yang sedang aktif.
+  const activeFilters = [
+    search && `kata kunci "${search}"`,
+    documentType && documentTypeInfo(documentType).short,
+    reviewStatus &&
+      (reviewStatus === 'none' ? 'Belum ada hasil' : REVIEW_STATUS[reviewStatus]?.label),
+    scoreFilter.value && scoreFilter.label,
+    AI_FILTERS[ai],
+  ].filter(Boolean)
 
   return (
     <>
+      <PageNav label={cameFrom === '/students' ? 'Mahasiswa' : 'Ringkasan'} fallback="/" />
+
       <div className="page-header">
         <div>
           <h1>Dokumen</h1>
@@ -72,6 +141,27 @@ export default function DocumentsPage() {
       </div>
 
       <section className="card">
+        {activeFilters.length > 0 && (
+          <div className="filter-info" role="status">
+            <Filter size={16} />
+            <span>
+              Menampilkan: <strong>{activeFilters.join(' · ')}</strong>
+            </span>
+            <button
+              type="button"
+              className="btn btn-ghost btn-sm"
+              onClick={() => {
+                setSearchInput('')
+                setParams(ordering === 'newest' ? {} : { ordering }, {
+                  replace: true,
+                  state: location.state,
+                })
+              }}
+            >
+              <X size={14} /> Hapus filter
+            </button>
+          </div>
+        )}
         <div className="filters">
           <div className="field filter-search">
             <label htmlFor="search">Cari</label>
@@ -85,23 +175,6 @@ export default function DocumentsPage() {
                 onChange={(e) => setSearchInput(e.target.value)}
               />
             </div>
-          </div>
-
-          <div className="field">
-            <label htmlFor="document_type">Jenis dokumen</label>
-            <select
-              id="document_type"
-              className="select"
-              value={documentType}
-              onChange={(e) => updateParams({ document_type: e.target.value })}
-            >
-              <option value="">Semua jenis</option>
-              {DOCUMENT_TYPES.map((type) => (
-                <option key={type.id} value={type.id}>
-                  {type.label}
-                </option>
-              ))}
-            </select>
           </div>
 
           <div className="field">
@@ -123,6 +196,42 @@ export default function DocumentsPage() {
           </div>
 
           <div className="field">
+            <label htmlFor="score">Skor</label>
+            <select
+              id="score"
+              className="select"
+              value={scoreFilter.value}
+              onChange={(e) => {
+                const choice = SCORE_FILTERS.find((f) => f.value === e.target.value)
+                updateParams({ score_min: choice?.min ?? '', score_max: choice?.max ?? '' })
+              }}
+            >
+              {SCORE_FILTERS.map((f) => (
+                <option key={f.value} value={f.value}>
+                  {f.label}
+                </option>
+              ))}
+              {scoreFilter.value === 'custom' && (
+                <option value="custom">{scoreFilter.label}</option>
+              )}
+            </select>
+          </div>
+
+          <div className="field">
+            <label htmlFor="ai">Analisis AI</label>
+            <select
+              id="ai"
+              className="select"
+              value={ai}
+              onChange={(e) => updateParams({ ai: e.target.value })}
+            >
+              <option value="">Semua</option>
+              <option value="success">Berhasil</option>
+              <option value="failed">Gagal</option>
+            </select>
+          </div>
+
+          <div className="field">
             <label htmlFor="ordering">Urutkan</label>
             <select
               id="ordering"
@@ -137,6 +246,26 @@ export default function DocumentsPage() {
               ))}
             </select>
           </div>
+        </div>
+
+        {/* Filter jenis dokumen: chip pil berwarna seperti di app mobile */}
+        <div className="chip-row" role="group" aria-label="Filter jenis dokumen">
+          <PillChip
+            label="Semua"
+            icon={LayoutGrid}
+            selected={!documentType}
+            onClick={() => updateParams({ document_type: '' })}
+          />
+          {DOCUMENT_TYPES.map((type) => (
+            <PillChip
+              key={type.id}
+              label={type.short}
+              icon={typeIcon(type.id)}
+              color={type.color}
+              selected={documentType === type.id}
+              onClick={() => updateParams({ document_type: type.id })}
+            />
+          ))}
         </div>
 
         {error && <ErrorAlert error={error} onRetry={reload} />}
@@ -171,10 +300,15 @@ export default function DocumentsPage() {
                       onKeyDown={(e) => e.key === 'Enter' && open(doc.id)}
                     >
                       <td>
-                        <div className="cell-title" title={doc.title}>
-                          {doc.title}
+                        <div className="row" style={{ flexWrap: 'nowrap', gap: 12 }}>
+                          <DocTypeIcon type={doc.document_type} size={40} />
+                          <div style={{ minWidth: 0 }}>
+                            <div className="cell-title" title={doc.title}>
+                              {doc.title}
+                            </div>
+                            <TypeBadge type={doc.document_type} />
+                          </div>
                         </div>
-                        <TypeBadge type={doc.document_type} />
                       </td>
                       <td>
                         <div style={{ fontWeight: 600 }}>{doc.student.name}</div>
@@ -199,9 +333,15 @@ export default function DocumentsPage() {
             {/* HP: kartu */}
             <div className="doc-cards">
               {results.map((doc) => (
-                <Link key={doc.id} to={`/documents/${doc.id}`} className="doc-card">
+                <Link
+                  key={doc.id}
+                  to={`/documents/${doc.id}`}
+                  state={{ from: listUrl }}
+                  className="doc-card"
+                >
                   <div className="doc-card-row" style={{ flexWrap: 'nowrap' }}>
-                    <div style={{ minWidth: 0 }}>
+                    <DocTypeIcon type={doc.document_type} size={40} />
+                    <div style={{ minWidth: 0, flex: 1 }}>
                       <div className="cell-title" style={{ maxWidth: '100%' }}>
                         {doc.title}
                       </div>

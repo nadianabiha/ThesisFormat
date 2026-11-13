@@ -5,10 +5,12 @@ from .views import (
     AdminDocumentListView,
     AdminDocumentReviewView,
     AdminStatsView,
+    AdminStudentListView,
 )
 
 urlpatterns = [
     path("stats/", AdminStatsView.as_view(), name="admin-stats"),
+    path("students/", AdminStudentListView.as_view(), name="admin-students"),
     path("documents/", AdminDocumentListView.as_view(), name="admin-documents"),
     path(
         "documents/<int:pk>/",

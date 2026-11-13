@@ -57,6 +57,7 @@ src/
 |---|---|---|
 | POST | `/api/token/` | Login (respons berisi `user.is_staff`) |
 | GET | `/api/v1/admin/stats/?weeks=8` | Statistik halaman Ringkasan |
-| GET | `/api/v1/admin/documents/` | Daftar dokumen (`search`, `document_type`, `review_status`, `ordering`, `page`, `page_size`) |
+| GET | `/api/v1/admin/documents/` | Daftar dokumen (`search`, `document_type`, `review_status`, `score_min`, `score_max`, `ai`=`success`/`failed`, `ordering`, `page`, `page_size`) |
+| GET | `/api/v1/admin/students/?search=` | Daftar mahasiswa + jumlah dokumen, rata-rata skor, menunggu review |
 | GET | `/api/v1/admin/documents/<id>/` | Detail dokumen + seluruh temuan |
 | PATCH | `/api/v1/admin/documents/<id>/review/` | Simpan review (`review_status`, `corrected_score`, `review_note`, `rejected_findings`) |

@@ -126,6 +126,50 @@ class AdminDashboardTests(APITestCase):
         data = self.client.get("/api/v1/admin/documents/?page_size=2&page=2").data
         self.assertEqual((data["page"], data["total_pages"], len(data["results"])), (2, 2, 1))
 
+    def test_document_list_score_and_ai_filters(self):
+        self._login(self.admin)
+        # doc_b tidak punya skor semantik (AI gagal).
+        AuditResult.objects.filter(document=self.doc_b).update(
+            recommendations={"has_format_score": True, "has_semantic_score": False},
+        )
+
+        def titles(query):
+            data = self.client.get(f"/api/v1/admin/documents/?{query}").data
+            return sorted(d["title"] for d in data["results"])
+
+        self.assertEqual(titles("score_min=75"), ["Skripsi A.docx"])
+        self.assertEqual(titles("score_max=74"), ["PKL B.docx"])
+        self.assertEqual(titles("ai=success"), ["Skripsi A.docx"])
+        self.assertEqual(titles("ai=failed"), ["PKL B.docx"])
+        self.assertEqual(len(titles("score_min=abc")), 3)  # nilai tidak valid diabaikan
+
+        # Skor koreksi admin ikut dipakai filter.
+        AuditResult.objects.filter(document=self.doc_b).update(corrected_score=90)
+        self.assertEqual(titles("score_min=75"), ["PKL B.docx", "Skripsi A.docx"])
+
+    def test_stats_consistent_with_filters(self):
+        self._login(self.admin)
+        overview = self.client.get("/api/v1/admin/stats/").data["overview"]
+        passing = self.client.get("/api/v1/admin/documents/?score_min=75").data["count"]
+        failing = self.client.get("/api/v1/admin/documents/?score_max=74").data["count"]
+        self.assertEqual(overview["passing_count"], passing)
+        self.assertEqual(overview["needs_improvement"], failing)
+
+    def test_student_list(self):
+        self._login(self.admin)
+        data = self.client.get("/api/v1/admin/students/").data
+        self.assertEqual(data["count"], 1)  # admin (staf) tidak ikut
+        student = data["results"][0]
+        self.assertEqual(student["email"], "mhs@test.id")
+        self.assertEqual(student["document_count"], 3)
+        self.assertEqual(student["average_score"], 70.0)
+        self.assertEqual(student["pending_review"], 2)
+        self.assertEqual(
+            self.client.get("/api/v1/admin/students/?search=tidak-ada").data["count"], 0
+        )
+        self._login(self.student)
+        self.assertEqual(self.client.get("/api/v1/admin/students/").status_code, 403)
+
     # ---------- Review ----------
 
     def test_review_correction_is_visible_to_student(self):

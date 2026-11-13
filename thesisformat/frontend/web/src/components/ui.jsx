@@ -1,5 +1,150 @@
-import { AlertCircle, Inbox } from 'lucide-react'
+import {
+  AlertCircle,
+  Briefcase,
+  Check,
+  FileCheck2,
+  FileText,
+  FlaskConical,
+  GraduationCap,
+  HeartHandshake,
+  Inbox,
+  Lightbulb,
+  Newspaper,
+} from 'lucide-react'
 import { REVIEW_STATUS, documentType, scoreTone } from '../utils/constants'
+
+// Ikon per jenis dokumen (padanan DocTypeStyle di app mobile).
+const TYPE_ICONS = {
+  praktik: FlaskConical,
+  pkl: Briefcase,
+  tugas_akhir: GraduationCap,
+  proposal_pengabdian: HeartHandshake,
+  proposal_penelitian: Lightbulb,
+  makalah_ilmiah: Newspaper,
+}
+
+export function typeIcon(id) {
+  return TYPE_ICONS[id] ?? FileText
+}
+
+/** Kotak ikon berwarna sesuai jenis dokumen. */
+export function DocTypeIcon({ type, size = 44 }) {
+  const info = documentType(type)
+  const Icon = typeIcon(type)
+  return (
+    <span
+      className="doc-type-icon"
+      style={{
+        width: size,
+        height: size,
+        borderRadius: size * 0.32,
+        background: `${info.color}1f`,
+        color: info.color,
+      }}
+      aria-hidden="true"
+    >
+      <Icon size={size * 0.5} />
+    </span>
+  )
+}
+
+/** Chip pil (filter), sama seperti PillChip di app mobile. */
+export function PillChip({ label, selected, onClick, icon: Icon, color }) {
+  const accent = color ?? 'var(--primary)'
+  return (
+    <button
+      type="button"
+      className={`pill-chip${selected ? ' selected' : ''}`}
+      style={selected ? { background: accent, borderColor: accent } : undefined}
+      aria-pressed={selected}
+      onClick={onClick}
+    >
+      {Icon && (
+        <span
+          className="pill-chip-icon"
+          style={{
+            background: selected ? 'rgba(255,255,255,.25)' : `${color ?? '#1E88D6'}1f`,
+            color: selected ? '#fff' : accent,
+          }}
+        >
+          <Icon size={13} />
+        </span>
+      )}
+      {label}
+    </button>
+  )
+}
+
+/**
+ * Ilustrasi sederhana: gumpalan warna, kertas dokumen, lencana.
+ * Padanan BlobIllustration di app mobile (tanpa aset gambar).
+ */
+export function BlobIllustration({
+  size = 160,
+  icon: Icon = FileCheck2,
+  badge: Badge = Check,
+  blob = 'var(--primary-light)',
+  badgeColor = 'var(--warning-strong)',
+}) {
+  const s = size
+  const line = (width) => (
+    <span className="blob-line" style={{ width: s * width, height: s * 0.032 }} />
+  )
+  return (
+    <div className="blob-illus" style={{ width: s, height: s }} aria-hidden="true">
+      <span
+        className="blob-shape"
+        style={{
+          left: s * 0.06,
+          top: s * 0.08,
+          width: s * 0.88,
+          height: s * 0.84,
+          background: blob,
+          borderRadius: `${s * 0.5}px ${s * 0.36}px ${s * 0.5}px ${s * 0.34}px`,
+        }}
+      />
+      <span
+        className="blob-dot"
+        style={{ right: s * 0.02, top: s * 0.04, width: s * 0.09, height: s * 0.09, background: 'var(--warning-strong)' }}
+      />
+      <span
+        className="blob-dot"
+        style={{ left: 0, bottom: s * 0.18, width: s * 0.06, height: s * 0.06, background: 'rgba(30,136,214,.45)' }}
+      />
+      <span
+        className="blob-paper"
+        style={{
+          left: s * 0.27,
+          top: s * 0.19,
+          width: s * 0.46,
+          height: s * 0.58,
+          padding: s * 0.055,
+          borderRadius: s * 0.07,
+          gap: s * 0.03,
+        }}
+      >
+        <Icon size={s * 0.13} color="var(--primary)" />
+        <span style={{ height: s * 0.01 }} />
+        {line(0.33)}
+        {line(0.26)}
+        {line(0.31)}
+        {line(0.18)}
+      </span>
+      <span
+        className="blob-badge"
+        style={{
+          right: s * 0.12,
+          bottom: s * 0.13,
+          width: s * 0.21,
+          height: s * 0.21,
+          background: badgeColor,
+        }}
+      >
+        <Badge size={s * 0.11} color="#fff" />
+      </span>
+    </div>
+  )
+}
 
 const TONE_COLOR = {
   success: 'var(--success)',
@@ -41,10 +186,15 @@ export function EmptyState({ icon: Icon = Inbox, title, children }) {
 
 export function TypeBadge({ type }) {
   const info = documentType(type)
+  const Icon = typeIcon(type)
   return (
-    <span className="cell-sub" title={info.label}>
-      <span className="type-dot" style={{ background: info.color }} />
-      {info.label}
+    <span
+      className="type-badge"
+      title={info.label}
+      style={{ background: `${info.color}1a`, color: info.color }}
+    >
+      <Icon size={12} />
+      {info.short}
     </span>
   )
 }

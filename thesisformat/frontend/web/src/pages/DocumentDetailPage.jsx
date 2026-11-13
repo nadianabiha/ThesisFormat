@@ -1,8 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { useParams } from 'react-router-dom'
 import {
   AlertTriangle,
-  ArrowLeft,
   BrainCircuit,
   Calendar,
   Check,
@@ -12,7 +11,16 @@ import {
   X,
 } from 'lucide-react'
 import { getDocument, reviewDocument } from '../api/dashboard'
-import { EmptyState, ErrorAlert, ReviewBadge, ScoreRing, Spinner } from '../components/ui'
+import PageNav from '../components/PageNav'
+import {
+  BlobIllustration,
+  EmptyState,
+  ErrorAlert,
+  ReviewBadge,
+  ScoreRing,
+  Spinner,
+  typeIcon,
+} from '../components/ui'
 import { COLORS, REVIEW_STATUS, documentType, scoreLabel } from '../utils/constants'
 import { formatDateTime } from '../utils/format'
 import { useAsync } from '../utils/useAsync'
@@ -243,19 +251,22 @@ export default function DocumentDetailPage() {
   )
   useEffect(() => setRejected(new Set(initialRejected)), [initialRejected])
 
+  // Tombol Kembali membuka daftar dokumen asal (lengkap dengan filternya,
+  // dikirim lewat location.state.from oleh halaman Dokumen).
+  const backNav = <PageNav label="daftar dokumen" fallback="/documents" />
+
   if (loading && !doc) return <Spinner />
   if (error && !doc) {
     return (
       <>
-        <Link to="/documents" className="back-link">
-          <ArrowLeft size={16} /> Kembali ke daftar dokumen
-        </Link>
+        {backNav}
         <ErrorAlert error={error} onRetry={error.status === 404 ? undefined : reload} />
       </>
     )
   }
 
   const type = documentType(doc.document_type)
+  const TypeIcon = typeIcon(doc.document_type)
   const physical = doc.findings.filter((f) => f.source !== 'semantic')
   const semantic = doc.findings.filter((f) => f.source === 'semantic')
   const corrected = doc.review?.corrected_score !== null && doc.review?.corrected_score !== undefined
@@ -282,9 +293,7 @@ export default function DocumentDetailPage() {
 
   return (
     <>
-      <Link to="/documents" className="back-link">
-        <ArrowLeft size={16} /> Kembali ke daftar dokumen
-      </Link>
+      {backNav}
 
       <div className="detail-grid">
         <div className="detail-main">
@@ -294,7 +303,7 @@ export default function DocumentDetailPage() {
               <div style={{ flex: 1, minWidth: 220 }}>
                 <div className="row" style={{ marginBottom: 8 }}>
                   <span className="badge" style={{ background: 'rgba(255,255,255,.2)', color: '#fff' }}>
-                    {type.label}
+                    <TypeIcon size={13} /> {type.label}
                   </span>
                   <span className="badge" style={{ background: '#fff', color: 'var(--hero-end)' }}>
                     {scoreLabel(doc.score)}
@@ -319,6 +328,9 @@ export default function DocumentDetailPage() {
                     Skor dikoreksi admin: {doc.review.system_score} → {doc.review.corrected_score}
                   </div>
                 )}
+              </div>
+              <div className="hero-illus">
+                <BlobIllustration size={130} blob="rgba(255,255,255,.22)" icon={TypeIcon} />
               </div>
             </div>
           </section>
