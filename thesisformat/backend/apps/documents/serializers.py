@@ -1,7 +1,7 @@
 from rest_framework import serializers
 
 from .models import Document
-from .scoring import result_from_metadata
+from .scoring import result_from_metadata, scores_from_findings
 
 
 def get_document_result(document):
@@ -13,22 +13,34 @@ def get_document_result(document):
     audit = getattr(document, "audit_result", None)
     if audit is not None:
         stored = audit.recommendations if isinstance(audit.recommendations, dict) else {}
-        # Temuan yang dinilai keliru oleh admin (Web Dashboard) tidak
-        # ditampilkan ke mahasiswa, dan skor koreksi admin menggantikan
-        # skor sistem.
+        system_score = round(float(audit.final_score))
+
+        # Temuan yang ditandai keliru oleh admin (Web Dashboard) tidak
+        # ditampilkan ke mahasiswa, dan skor dihitung ulang tanpa temuan
+        # tersebut dengan rumus yang sama (40% format + 60% isi).
         rejected = set(audit.rejected_findings or [])
         findings = [
             finding
             for index, finding in enumerate(audit.findings or [])
             if index not in rejected
         ]
+
+        if rejected:
+            scores = scores_from_findings(findings)
+        else:
+            scores = {
+                "total_score": system_score,
+                "format_score": round(float(audit.physical_score)),
+                "semantic_score": round(float(audit.semantic_score)),
+                "has_format_score": stored.get("has_format_score", True),
+                "has_semantic_score": stored.get("has_semantic_score", False),
+            }
+
         return {
-            "total_score": round(float(audit.effective_score)),
-            "format_score": round(float(audit.physical_score)),
-            "semantic_score": round(float(audit.semantic_score)),
-            "has_format_score": stored.get("has_format_score", True),
-            "has_semantic_score": stored.get("has_semantic_score", False),
+            **scores,
             "findings": findings,
+            "system_score": system_score,
+            "removed_findings": len(rejected),
             "review_status": audit.review_status,
             "review_note": audit.review_note,
         }

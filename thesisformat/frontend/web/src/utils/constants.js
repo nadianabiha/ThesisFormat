@@ -20,10 +20,12 @@ export function documentType(id) {
   )
 }
 
+// Tinjauan admin bersifat opsional (bukan antrean wajib): hasil AI langsung
+// berlaku; admin hanya menandai temuan yang keliru sebagai umpan balik.
 export const REVIEW_STATUS = {
-  pending: { label: 'Menunggu review', tone: 'warning' },
-  validated: { label: 'Tervalidasi', tone: 'success' },
-  corrected: { label: 'Dikoreksi', tone: 'info' },
+  pending: { label: 'Belum ditinjau', tone: 'muted' },
+  validated: { label: 'Ditinjau, sesuai', tone: 'success' },
+  corrected: { label: 'Ada temuan keliru', tone: 'info' },
 }
 
 // Skor minimal "memenuhi standar" (sama dengan backend PASSING_SCORE).

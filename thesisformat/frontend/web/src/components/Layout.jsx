@@ -2,11 +2,12 @@ import { useEffect, useState } from 'react'
 import { Link, NavLink, Outlet, useLocation } from 'react-router-dom'
 import {
   BookOpenCheck,
-  ClipboardCheck,
+  BrainCircuit,
   FileText,
   LayoutDashboard,
   LogOut,
   Menu,
+  SlidersHorizontal,
   Users,
   X,
 } from 'lucide-react'
@@ -17,6 +18,8 @@ const NAV_ITEMS = [
   { to: '/', label: 'Ringkasan', icon: LayoutDashboard, end: true },
   { to: '/documents', label: 'Dokumen', icon: FileText },
   { to: '/students', label: 'Mahasiswa', icon: Users },
+  { to: '/ai-performance', label: 'Kinerja AI', icon: BrainCircuit },
+  { to: '/rules', label: 'Aturan AI', icon: SlidersHorizontal },
 ]
 
 export default function Layout() {
@@ -52,11 +55,11 @@ export default function Layout() {
         </nav>
 
         <div className="side-promo">
-          <BlobIllustration size={88} icon={ClipboardCheck} />
-          <strong>Hasil AI perlu dicek?</strong>
-          <p>Validasi atau koreksi sebelum dipakai mahasiswa.</p>
-          <Link to="/documents?review_status=pending" className="btn btn-accent btn-sm">
-            Lihat antrean
+          <BlobIllustration size={88} icon={BrainCircuit} />
+          <strong>Apakah AI sudah bekerja optimal?</strong>
+          <p>Amati pola kesalahan AI, lalu perbaiki aturannya.</p>
+          <Link to="/ai-performance" className="btn btn-accent btn-sm">
+            Pantau AI
           </Link>
         </div>
 

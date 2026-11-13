@@ -1402,6 +1402,201 @@ a.stat-card:hover .stat-cta {
   margin: 8px 0;
 }
 
+/* ---------- Pengawasan kualitas AI ---------- */
+
+.alert-info-soft {
+  background: var(--primary-soft);
+  color: var(--primary-dark);
+}
+
+.spin {
+  animation: spin 1s linear infinite;
+  flex-shrink: 0;
+}
+
+/* Siklus: Amati -> Temukan pola -> Perbaiki -> Uji ulang */
+.cycle-steps {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
+.cycle-step {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  padding: 14px;
+  border-radius: 18px;
+  background: var(--card);
+  box-shadow: var(--shadow);
+}
+
+.cycle-number {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  font-weight: 800;
+  color: #fff;
+  background: linear-gradient(135deg, var(--hero-start), var(--hero-end));
+}
+
+.rate-bar {
+  position: relative;
+  height: 22px;
+  border-radius: 999px;
+  background: var(--surface-2);
+  overflow: hidden;
+  min-width: 120px;
+}
+
+.rate-bar span {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+}
+
+.rate-bar em {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-style: normal;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.aspect-table tbody tr {
+  cursor: default;
+}
+
+.disabled-row {
+  opacity: 0.55;
+}
+
+.retest-panel {
+  margin-bottom: 16px;
+  border: 1.5px solid var(--primary-light);
+}
+
+.retest-list {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--divider);
+  border-radius: var(--radius-sm);
+}
+
+.retest-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--divider);
+}
+
+.retest-row:last-child {
+  border-bottom: none;
+}
+
+.feedback-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px 14px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--divider);
+  color: inherit;
+}
+
+.feedback-item:hover {
+  text-decoration: none;
+  border-color: var(--primary-light);
+  background: var(--primary-soft);
+}
+
+/* Halaman Aturan & Instruksi AI */
+.rules-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  gap: 16px;
+}
+
+.rule-card {
+  scroll-margin-top: 90px;
+  transition: box-shadow 0.3s;
+}
+
+.rule-card.inactive {
+  opacity: 0.65;
+}
+
+.rule-card.highlight {
+  box-shadow: 0 0 0 3px var(--warning-strong), var(--shadow);
+}
+
+.margin-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  flex-shrink: 0;
+  position: relative;
+}
+
+.switch input {
+  position: absolute;
+  opacity: 0;
+  width: 1px;
+  height: 1px;
+}
+
+.switch-track {
+  width: 40px;
+  height: 22px;
+  border-radius: 999px;
+  background: var(--border);
+  position: relative;
+  transition: background 0.15s;
+}
+
+.switch-track::after {
+  content: '';
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+  transition: transform 0.15s;
+}
+
+.switch input:checked + .switch-track {
+  background: var(--success);
+}
+
+.switch input:checked + .switch-track::after {
+  transform: translateX(18px);
+}
+
+.switch input:focus-visible + .switch-track {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
 /* Tombol kembali */
 .page-nav {
   display: flex;
@@ -1470,6 +1665,10 @@ a.stat-card:hover .stat-cta {
   }
 
   .filters {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .cycle-steps {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
@@ -1547,6 +1746,15 @@ a.stat-card:hover .stat-cta {
 /* HP */
 @media (max-width: 640px) {
   .type-tiles {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .cycle-steps,
+  .rules-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .margin-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 

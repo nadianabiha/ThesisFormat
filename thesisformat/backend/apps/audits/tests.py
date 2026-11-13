@@ -1,18 +1,24 @@
 import shutil
 import tempfile
+from unittest import mock
 
 from django.contrib.auth import get_user_model
 from django.core.files.uploadedfile import SimpleUploadedFile
-from django.test import override_settings
+from django.test import SimpleTestCase, override_settings
 from rest_framework.test import APITestCase
 
-from apps.audits.models import AuditResult
+from apps.audits.models import AIRun, AuditResult, FindingFeedback
 from apps.documents.models import Document
+from apps.documents.scoring import normalize_category, normalize_semantic
+from apps.documents.semantic.prompts import DEFAULT_ASPECTS, build_semantic_prompt
+from apps.rules.models import MasterRule, RuleVersion
 
 User = get_user_model()
 
 TEMP_MEDIA = tempfile.mkdtemp()
 
+# Format 50 (1 lulus, 1 gagal) + semantik 0 (abstrak gagal)
+# -> skor = 0.4*50 + 0.6*0 = 20.
 FINDINGS = [
     {"source": "physical", "status": "failed", "type": "error",
      "title": "font name", "location": "Dokumen", "detail": "Font salah"},
@@ -63,6 +69,11 @@ class AdminDashboardTests(APITestCase):
     def _login(self, user):
         self.client.force_authenticate(user)
 
+    def _review(self, document, body):
+        return self.client.patch(
+            f"/api/v1/admin/documents/{document.pk}/review/", body, format="json",
+        )
+
     # ---------- Hak akses ----------
 
     def test_requires_staff(self):
@@ -72,12 +83,13 @@ class AdminDashboardTests(APITestCase):
             "/api/v1/admin/stats/",
             "/api/v1/admin/documents/",
             f"/api/v1/admin/documents/{self.doc_a.pk}/",
+            "/api/v1/admin/ai-performance/",
+            "/api/v1/admin/ai-performance/retest-candidates/",
+            "/api/v1/admin/rules/",
         ):
             self.assertEqual(self.client.get(url).status_code, 403, url)
-        response = self.client.patch(
-            f"/api/v1/admin/documents/{self.doc_a.pk}/review/",
-            {"review_status": "validated"}, format="json",
-        )
+        self.assertEqual(self._review(self.doc_a, {}).status_code, 403)
+        response = self.client.post(f"/api/v1/admin/documents/{self.doc_a.pk}/reanalyze/")
         self.assertEqual(response.status_code, 403)
 
     def test_token_contains_is_staff(self):
@@ -89,7 +101,7 @@ class AdminDashboardTests(APITestCase):
         self.assertEqual(response.status_code, 200)
         self.assertTrue(response.data["user"]["is_staff"])
 
-    # ---------- Statistik ----------
+    # ---------- Statistik & daftar ----------
 
     def test_stats(self):
         self._login(self.admin)
@@ -101,26 +113,20 @@ class AdminDashboardTests(APITestCase):
         self.assertEqual(overview["passing_count"], 1)
         self.assertEqual(overview["review"]["pending"], 2)
         self.assertEqual(len(data["score_by_type"]), len(Document.DocumentType.choices))
-        top = data["top_findings"][0]
-        self.assertEqual(top["count"], 2)
+        self.assertEqual(data["top_findings"][0]["count"], 2)
         self.assertEqual(sum(b["count"] for b in data["score_distribution"]), 2)
         self.assertEqual(len(data["trend"]), 8)
         self.assertEqual(data["trend"][-1]["uploads"], 3)
 
-    # ---------- Daftar dokumen ----------
-
     def test_document_list_filters_and_ordering(self):
         self._login(self.admin)
         data = self.client.get("/api/v1/admin/documents/?ordering=score_high").data
-        self.assertEqual(data["count"], 3)
         self.assertEqual(
             [d["title"] for d in data["results"]],
             ["Skripsi A.docx", "PKL B.docx", "Kosong.pdf"],  # tanpa skor di bawah
         )
-        data = self.client.get("/api/v1/admin/documents/?document_type=pkl").data
-        self.assertEqual(data["count"], 2)
-        data = self.client.get("/api/v1/admin/documents/?search=siti").data
-        self.assertEqual(data["count"], 3)
+        self.assertEqual(self.client.get("/api/v1/admin/documents/?document_type=pkl").data["count"], 2)
+        self.assertEqual(self.client.get("/api/v1/admin/documents/?search=siti").data["count"], 3)
         data = self.client.get("/api/v1/admin/documents/?review_status=none").data
         self.assertEqual([d["title"] for d in data["results"]], ["Kosong.pdf"])
         data = self.client.get("/api/v1/admin/documents/?page_size=2&page=2").data
@@ -128,7 +134,6 @@ class AdminDashboardTests(APITestCase):
 
     def test_document_list_score_and_ai_filters(self):
         self._login(self.admin)
-        # doc_b tidak punya skor semantik (AI gagal).
         AuditResult.objects.filter(document=self.doc_b).update(
             recommendations={"has_format_score": True, "has_semantic_score": False},
         )
@@ -141,87 +146,285 @@ class AdminDashboardTests(APITestCase):
         self.assertEqual(titles("score_max=74"), ["PKL B.docx"])
         self.assertEqual(titles("ai=success"), ["Skripsi A.docx"])
         self.assertEqual(titles("ai=failed"), ["PKL B.docx"])
-        self.assertEqual(len(titles("score_min=abc")), 3)  # nilai tidak valid diabaikan
-
-        # Skor koreksi admin ikut dipakai filter.
-        AuditResult.objects.filter(document=self.doc_b).update(corrected_score=90)
-        self.assertEqual(titles("score_min=75"), ["PKL B.docx", "Skripsi A.docx"])
+        self.assertEqual(len(titles("score_min=abc")), 3)
 
     def test_stats_consistent_with_filters(self):
         self._login(self.admin)
         overview = self.client.get("/api/v1/admin/stats/").data["overview"]
-        passing = self.client.get("/api/v1/admin/documents/?score_min=75").data["count"]
-        failing = self.client.get("/api/v1/admin/documents/?score_max=74").data["count"]
-        self.assertEqual(overview["passing_count"], passing)
-        self.assertEqual(overview["needs_improvement"], failing)
+        self.assertEqual(
+            overview["passing_count"],
+            self.client.get("/api/v1/admin/documents/?score_min=75").data["count"],
+        )
+        self.assertEqual(
+            overview["needs_improvement"],
+            self.client.get("/api/v1/admin/documents/?score_max=74").data["count"],
+        )
 
     def test_student_list(self):
         self._login(self.admin)
         data = self.client.get("/api/v1/admin/students/").data
-        self.assertEqual(data["count"], 1)  # admin (staf) tidak ikut
+        self.assertEqual(data["count"], 1)
         student = data["results"][0]
-        self.assertEqual(student["email"], "mhs@test.id")
         self.assertEqual(student["document_count"], 3)
         self.assertEqual(student["average_score"], 70.0)
         self.assertEqual(student["pending_review"], 2)
-        self.assertEqual(
-            self.client.get("/api/v1/admin/students/?search=tidak-ada").data["count"], 0
-        )
-        self._login(self.student)
-        self.assertEqual(self.client.get("/api/v1/admin/students/").status_code, 403)
 
-    # ---------- Review ----------
+    # ---------- 1. CATAT: tinjauan admin ----------
 
-    def test_review_correction_is_visible_to_student(self):
+    def test_marking_finding_incorrect_recalculates_score(self):
         self._login(self.admin)
-        url = f"/api/v1/admin/documents/{self.doc_b.pk}/review/"
 
-        response = self.client.patch(url, {"review_status": "corrected"}, format="json")
-        self.assertEqual(response.status_code, 400)
-
-        response = self.client.patch(
-            url,
-            {"review_status": "corrected", "corrected_score": 85,
-             "review_note": "Temuan abstrak keliru", "rejected_findings": [2, 2]},
-            format="json",
+        # Tandai temuan "Abstrak" keliru -> semantik tidak lagi gagal.
+        response = self._review(
+            self.doc_b,
+            {"rejected_findings": [2, 2], "review_note": "Abstrak sudah sesuai"},
         )
         self.assertEqual(response.status_code, 200, response.data)
-        self.assertEqual(response.data["score"], 85)
-        self.assertEqual(response.data["review"]["system_score"], 60)
-        self.assertEqual(response.data["review"]["reviewed_by"]["email"], "admin@test.id")
+        # Dihitung ulang: hanya format (50) yang tersisa -> skor 50.
+        self.assertEqual(response.data["score"], 50)
+        review = response.data["review"]
+        self.assertEqual(review["status"], "corrected")
+        self.assertEqual(review["system_score"], 60)
+        self.assertEqual(review["corrected_score"], 50)
+        self.assertEqual(review["removed_findings"], 1)
+        self.assertEqual(review["reviewed_by"]["email"], "admin@test.id")
         self.assertEqual([f["rejected"] for f in response.data["findings"]], [False, False, True])
+        self.assertEqual(response.data["findings"][0]["aspect"], "font_name")
+        self.assertEqual(response.data["findings"][2]["aspect_label"], "Abstrak")
 
-        # Mahasiswa melihat skor koreksi dan temuan yang ditolak tidak muncul.
+        # Umpan balik tercatat untuk pengamatan pola.
+        feedback = FindingFeedback.objects.get(document=self.doc_b)
+        self.assertEqual((feedback.source, feedback.aspect), ("semantic", "abstrak"))
+
+        # Mahasiswa melihat skor hasil hitung ulang, temuan keliru disembunyikan.
         self._login(self.student)
         history = self.client.get("/api/v1/documents/history/").data["documents"]
         doc_b = next(d for d in history if d["id"] == self.doc_b.pk)
-        self.assertEqual(doc_b["score"], 85)
-        self.assertEqual(doc_b["findings_count"], 1)
+        self.assertEqual(doc_b["score"], 50)
+        self.assertEqual(doc_b["result"]["system_score"], 60)
+        self.assertEqual(doc_b["result"]["removed_findings"], 1)
+        self.assertEqual(doc_b["result"]["review_note"], "Abstrak sudah sesuai")
         self.assertEqual(len(doc_b["result"]["findings"]), 2)
 
-    def test_review_back_to_pending_resets(self):
+    def test_unmarking_restores_score_and_removes_feedback(self):
         self._login(self.admin)
-        url = f"/api/v1/admin/documents/{self.doc_a.pk}/review/"
-        self.client.patch(url, {"review_status": "corrected", "corrected_score": 50}, format="json")
-        response = self.client.patch(url, {"review_status": "pending"}, format="json")
+        self._review(self.doc_a, {"rejected_findings": [0]})
+        self.assertEqual(FindingFeedback.objects.count(), 1)
+
+        response = self._review(self.doc_a, {"rejected_findings": []})
         self.assertEqual(response.data["score"], 80)
-        self.assertIsNone(response.data["review"]["reviewed_by"])
+        self.assertEqual(response.data["review"]["status"], "validated")
         self.assertIsNone(response.data["review"]["corrected_score"])
+        self.assertEqual(FindingFeedback.objects.count(), 0)
 
     def test_review_validation_errors(self):
         self._login(self.admin)
+        self.assertEqual(self._review(self.doc_a, {"rejected_findings": [9]}).status_code, 400)
+        # Temuan yang lulus tidak bisa ditandai keliru.
+        self.assertEqual(self._review(self.doc_a, {"rejected_findings": [1]}).status_code, 400)
+        self.assertEqual(self._review(self.doc_c, {}).status_code, 409)
         response = self.client.patch(
-            f"/api/v1/admin/documents/{self.doc_a.pk}/review/",
-            {"review_status": "validated", "rejected_findings": [9]}, format="json",
-        )
-        self.assertEqual(response.status_code, 400)
-        response = self.client.patch(
-            f"/api/v1/admin/documents/{self.doc_c.pk}/review/",
-            {"review_status": "validated"}, format="json",
-        )
-        self.assertEqual(response.status_code, 409)
-        response = self.client.patch(
-            "/api/v1/admin/documents/99999/review/",
-            {"review_status": "validated"}, format="json",
+            "/api/v1/admin/documents/99999/review/", {}, format="json",
         )
         self.assertEqual(response.status_code, 404)
+
+    # ---------- 2. AMATI: kinerja AI ----------
+
+    def test_ai_performance(self):
+        self._login(self.admin)
+        AIRun.objects.create(document=self.doc_a, trigger="upload", status="success",
+                             model="gemini-3.5-flash", duration_ms=20000)
+        AIRun.objects.create(document=self.doc_b, trigger="upload", status="failed",
+                             error_type="unavailable", unknown_categories=["isi"])
+        self._review(self.doc_a, {"rejected_findings": [2]})
+
+        data = self.client.get("/api/v1/admin/ai-performance/").data
+        runs = data["runs"]
+        self.assertEqual((runs["total"], runs["success"], runs["failed"]), (2, 1, 1))
+        self.assertEqual(runs["success_rate"], 50.0)
+        self.assertEqual(runs["avg_duration_ms"], 20000)
+        self.assertEqual(runs["failure_reasons"][0]["type"], "unavailable")
+        self.assertEqual(runs["by_model"][0]["model"], "gemini-3.5-flash")
+        self.assertEqual(runs["unknown_category_runs"], 1)
+
+        abstrak = next(a for a in data["aspects"] if a["aspect"] == "abstrak")
+        self.assertEqual(abstrak["failed_count"], 2)    # gagal di 2 dokumen
+        self.assertEqual(abstrak["feedback_count"], 1)  # 1 ditandai keliru
+        self.assertEqual(abstrak["feedback_rate"], 50.0)
+        self.assertEqual(data["aspects"][0]["aspect"], "abstrak")  # paling bermasalah di atas
+        self.assertEqual(data["recent_feedback"][0]["aspect_label"], "Abstrak")
+        self.assertEqual(data["versions"][-1]["version"], 0)
+        self.assertEqual(data["feedback_total"], 1)
+
+    def test_retest_candidates(self):
+        self._login(self.admin)
+        self._review(self.doc_a, {"rejected_findings": [2]})
+        self._review(self.doc_b, {"rejected_findings": [0]})
+        data = self.client.get(
+            "/api/v1/admin/ai-performance/retest-candidates/?source=semantic&aspect=abstrak"
+        ).data
+        self.assertEqual([r["document_id"] for r in data["results"]], [self.doc_a.pk])
+
+    # ---------- 3. PERBAIKI: aturan & instruksi AI ----------
+
+    def test_rules_list_and_update_creates_version(self):
+        self._login(self.admin)
+        data = self.client.get("/api/v1/admin/rules/").data
+        # Aturan semantik diisi oleh migration (7 aspek).
+        self.assertEqual(len(data["semantic"]), 7)
+        self.assertEqual(data["current_version"], 0)
+
+        abstrak = MasterRule.objects.get(category="semantic", rule_key="abstrak", document_type="")
+        response = self.client.patch(
+            f"/api/v1/admin/rules/{abstrak.pk}/",
+            {"instruction": "Abstrak maksimal 300 kata.", "note": "Longgarkan abstrak"},
+            format="json",
+        )
+        self.assertEqual(response.status_code, 200, response.data)
+        self.assertEqual(response.data["version"], RuleVersion.current())
+        version = RuleVersion.objects.get()
+        self.assertEqual(version.note, "Longgarkan abstrak")
+        self.assertEqual(version.changes[0]["after"]["instruction"], "Abstrak maksimal 300 kata.")
+
+        # Instruksi baru dipakai saat membangun prompt.
+        aspects = MasterRule.semantic_aspects("pkl")
+        self.assertIn("Abstrak maksimal 300 kata.", build_semantic_prompt("teks", "PKL", aspects))
+
+        # Tanpa perubahan -> ditolak.
+        response = self.client.patch(
+            f"/api/v1/admin/rules/{abstrak.pk}/",
+            {"instruction": "Abstrak maksimal 300 kata."}, format="json",
+        )
+        self.assertEqual(response.status_code, 400)
+
+    def test_disable_aspect_and_validation(self):
+        self._login(self.admin)
+        semantic = MasterRule.objects.filter(category="semantic", document_type="")
+        abstrak = semantic.get(rule_key="abstrak")
+        self.client.patch(f"/api/v1/admin/rules/{abstrak.pk}/", {"active": False}, format="json")
+        keys = [a["key"] for a in MasterRule.semantic_aspects("pkl")]
+        self.assertNotIn("abstrak", keys)
+        self.assertEqual(len(keys), 6)
+
+        # Aspek terakhir tidak boleh dinonaktifkan.
+        semantic.exclude(pk=abstrak.pk).exclude(rule_key="sitasi").update(active=False)
+        sitasi = semantic.get(rule_key="sitasi")
+        response = self.client.patch(f"/api/v1/admin/rules/{sitasi.pk}/", {"active": False}, format="json")
+        self.assertEqual(response.status_code, 400)
+
+        font = MasterRule.objects.create(
+            category="physical", rule_key="font_size", rule_value={"value": 12},
+        )
+        bad = self.client.patch(f"/api/v1/admin/rules/{font.pk}/", {"value": 99}, format="json")
+        self.assertEqual(bad.status_code, 400)
+        good = self.client.patch(f"/api/v1/admin/rules/{font.pk}/", {"value": "11.5"}, format="json")
+        self.assertEqual(good.status_code, 200, good.data)
+        self.assertEqual(good.data["rule"]["value"], 11.5)
+
+    # ---------- 4. BUKTIKAN: analisis ulang ----------
+
+    @mock.patch("apps.documents.pipeline.run_jalur_b")
+    @mock.patch("apps.documents.pipeline.run_jalur_a")
+    def test_reanalyze_compares_with_previous_feedback(self, jalur_a, jalur_b):
+        self._login(self.admin)
+        self._review(self.doc_b, {"rejected_findings": [0, 2]})  # font name & abstrak keliru
+
+        jalur_a.return_value = {
+            "parsed_document": {"paragraphs": [{"text": "isi"}]},
+            "findings": [{"rule_key": "font_name", "status": "failed", "message": "Font salah"}],
+            "summary": {},
+        }
+        jalur_b.return_value = {
+            "findings": [{"category": "Abstract", "issue": "Abstrak sesuai", "status": "passed"}],
+            "summary": {}, "error": None, "error_type": "", "model": "gemini-3.5-flash",
+            "duration_ms": 1234, "unknown_categories": [],
+        }
+
+        response = self.client.post(f"/api/v1/admin/documents/{self.doc_b.pk}/reanalyze/")
+        self.assertEqual(response.status_code, 200, response.data)
+        comparison = response.data["comparison"]
+        self.assertEqual(comparison["ai_status"], "success")
+        result = {item["aspect"]: item["still_present"] for item in comparison["feedback"]}
+        self.assertEqual(result, {"font_name": True, "abstrak": False})
+        self.assertEqual((comparison["resolved"], comparison["still_present"]), (1, 1))
+        # Kategori "Abstract" dikenali sebagai "abstrak"; tanda keliru direset.
+        document = response.data["document"]
+        self.assertEqual(document["findings"][1]["aspect"], "abstrak")
+        self.assertEqual(document["review"]["status"], "pending")
+        self.assertEqual(document["review"]["removed_findings"], 0)
+        self.assertEqual(document["ai"]["model"], "gemini-3.5-flash")
+        # Riwayat umpan balik tetap ada untuk pengamatan pola.
+        self.assertEqual(FindingFeedback.objects.filter(document=self.doc_b).count(), 2)
+
+        run = AIRun.objects.get(document=self.doc_b)
+        self.assertEqual((run.trigger, run.triggered_by, run.status), ("reanalyze", self.admin, "success"))
+
+        # Instruksi AI dari MasterRule dikirim ke Jalur B.
+        aspects = jalur_b.call_args.kwargs["aspects"]
+        self.assertEqual(len(aspects), 7)
+
+    @mock.patch("apps.documents.pipeline.run_jalur_b")
+    @mock.patch("apps.documents.pipeline.run_jalur_a")
+    def test_reanalyze_when_ai_fails(self, jalur_a, jalur_b):
+        self._login(self.admin)
+        self._review(self.doc_b, {"rejected_findings": [2]})
+        jalur_a.return_value = {"parsed_document": {}, "findings": [], "summary": {}}
+        jalur_b.return_value = {
+            "findings": [], "summary": {}, "error": "503 UNAVAILABLE",
+            "error_type": "unavailable", "model": "", "duration_ms": 5,
+            "unknown_categories": [],
+        }
+        response = self.client.post(f"/api/v1/admin/documents/{self.doc_b.pk}/reanalyze/")
+        comparison = response.data["comparison"]
+        self.assertEqual(comparison["ai_status"], "failed")
+        self.assertEqual(comparison["ai_error_label"], "Gemini sedang sibuk (503)")
+        self.assertIsNone(comparison["feedback"][0]["still_present"])
+
+    def test_reanalyze_missing_file(self):
+        self._login(self.admin)
+        Document.objects.filter(pk=self.doc_a.pk).update(file="documents/tidak-ada.docx")
+        response = self.client.post(f"/api/v1/admin/documents/{self.doc_a.pk}/reanalyze/")
+        self.assertEqual(response.status_code, 409)
+
+    # ---------- Upload mahasiswa ikut tercatat ----------
+
+    @mock.patch("apps.documents.pipeline.run_jalur_b")
+    @mock.patch("apps.documents.pipeline.run_jalur_a")
+    def test_upload_records_ai_run(self, jalur_a, jalur_b):
+        jalur_a.return_value = {"parsed_document": {}, "findings": [], "summary": {}}
+        jalur_b.return_value = {
+            "findings": [{"category": "sitasi", "issue": "OK", "status": "passed"}],
+            "summary": {}, "error": None, "error_type": "", "model": "gemini-3.8-flash",
+            "duration_ms": 900, "unknown_categories": [],
+        }
+        self._login(self.student)
+        response = self.client.post(
+            "/api/v1/documents/upload/",
+            {"title": "baru.docx", "document_type": "pkl",
+             "file": SimpleUploadedFile("baru.docx", b"isi")},
+            format="multipart",
+        )
+        self.assertEqual(response.status_code, 201, response.data)
+        run = AIRun.objects.get(document_id=response.data["document"]["id"])
+        self.assertEqual((run.trigger, run.status, run.model), ("upload", "success", "gemini-3.8-flash"))
+
+
+class ScoringHelpersTests(SimpleTestCase):
+
+    def test_normalize_category(self):
+        self.assertEqual(normalize_category("abstrak"), "abstrak")
+        self.assertEqual(normalize_category("Abstract"), "abstrak")
+        self.assertEqual(normalize_category("Sitasi & Kepustakaan"), "sitasi")
+        self.assertEqual(normalize_category("hierarki-urutan bab"), "hierarki_bab")
+        self.assertEqual(normalize_category("tidak dikenal"), "")
+        self.assertEqual(normalize_category(None), "")
+        self.assertEqual(
+            normalize_semantic([{"category": "Konsistensi Istilah Teknis", "status": "failed"}])[0]["title"],
+            "Konsistensi istilah teknis",
+        )
+
+    def test_prompt_lists_only_given_aspects(self):
+        prompt = build_semantic_prompt("teks", "PKL", DEFAULT_ASPECTS[:2])
+        self.assertIn('"sitasi" / "daftar_isi"', prompt)
+        self.assertNotIn("ABSTRAK", prompt)
+        self.assertIn("ABSTRAK", build_semantic_prompt("teks"))

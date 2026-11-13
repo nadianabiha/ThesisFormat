@@ -144,7 +144,6 @@ export default function OverviewPage() {
   if (!data && error) return <ErrorAlert error={error} onRetry={reload} />
 
   const { overview, score_by_type, score_distribution, trend, top_findings } = data
-  const pending = overview.review.pending
   const firstName = (user?.name || 'Admin').split(/\s+/)[0]
 
   return (
@@ -155,13 +154,13 @@ export default function OverviewPage() {
           <span className="eyebrow">Selamat datang kembali</span>
           <h1>Halo, {firstName}</h1>
           <p>
-            {pending > 0
-              ? `Ada ${pending} hasil pemeriksaan AI yang menunggu review. Validasi atau koreksi sebelum dipakai mahasiswa.`
-              : 'Semua hasil pemeriksaan AI sudah direview. Pantau statistik terbaru di bawah ini.'}
+            {overview.ai_success_rate === null
+              ? 'Belum ada analisis AI. Statistik akan muncul setelah mahasiswa mengunggah dokumen.'
+              : `Analisis AI berhasil pada ${formatNumber(overview.ai_success_rate, '%')} dokumen. Amati pola kesalahan AI dan perbaiki aturannya agar hasilnya makin akurat.`}
           </p>
           <div className="hero-actions">
-            <Link to="/documents?review_status=pending" className="btn btn-white">
-              Mulai review <ArrowRight size={16} />
+            <Link to="/ai-performance" className="btn btn-white">
+              Lihat kinerja AI <ArrowRight size={16} />
             </Link>
           </div>
         </div>
@@ -226,10 +225,10 @@ export default function OverviewPage() {
         <StatCard
           icon={ClipboardCheck}
           color={COLORS.accent}
-          label="Menunggu review"
-          value={formatNumber(pending)}
-          hint={`${overview.review.validated} tervalidasi · ${overview.review.corrected} dikoreksi`}
-          to="/documents?review_status=pending"
+          label="Temuan AI ditandai keliru"
+          value={formatNumber(overview.feedback_total)}
+          hint="Umpan balik untuk memperbaiki AI"
+          to="/ai-performance"
         />
       </div>
 

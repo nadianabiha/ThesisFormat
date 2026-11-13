@@ -1,5 +1,12 @@
 from django.urls import path
 
+from .ai_views import (
+    AdminDocumentReanalyzeView,
+    AIPerformanceView,
+    RetestCandidatesView,
+    RuleDetailView,
+    RuleListView,
+)
 from .views import (
     AdminDocumentDetailView,
     AdminDocumentListView,
@@ -22,4 +29,18 @@ urlpatterns = [
         AdminDocumentReviewView.as_view(),
         name="admin-document-review",
     ),
+    path(
+        "documents/<int:pk>/reanalyze/",
+        AdminDocumentReanalyzeView.as_view(),
+        name="admin-document-reanalyze",
+    ),
+    # Pengawasan & perbaikan kualitas AI.
+    path("ai-performance/", AIPerformanceView.as_view(), name="admin-ai-performance"),
+    path(
+        "ai-performance/retest-candidates/",
+        RetestCandidatesView.as_view(),
+        name="admin-ai-retest-candidates",
+    ),
+    path("rules/", RuleListView.as_view(), name="admin-rules"),
+    path("rules/<int:pk>/", RuleDetailView.as_view(), name="admin-rule-detail"),
 ]

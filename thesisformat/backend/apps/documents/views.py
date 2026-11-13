@@ -6,12 +6,8 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from apps.rules.models import MasterRule
 from .models import Document
-from .parser.jalur_a_service import run_jalur_a
-from .semantic.jalur_b_service import run_jalur_b
-from apps.audits.models import AuditResult
-from .scoring import build_result
+from .pipeline import check_document
 from .serializers import DocumentSerializer, get_document_result
 
 
@@ -38,95 +34,19 @@ class DocumentUploadView(APIView):
         document = serializer.save(user=request.user)
 
         try:
-            # 3. Ambil aturan fisik aktif sesuai jenis dokumen.
-            physical_rules = MasterRule.for_document(
-                MasterRule.Category.PHYSICAL,
-                document.document_type,
-            )
-
-            # 4. Jalankan pemeriksaan fisik (Jalur A).
-            jalur_a_result = run_jalur_a(
-                document.file.path,
-                rules=physical_rules,
-            )
-
-            # 5. Jalankan pemeriksaan semantik (Jalur B).
-            try:
-                jalur_b_result = run_jalur_b(
-                    jalur_a_result["parsed_document"],
-                    document_type=document.get_document_type_display(),
-                )
-
-            except Exception as exc:
-                logger.exception(
-                    "Jalur B gagal. Document ID: %s",
-                    document.id,
-                )
-
-                jalur_b_result = {
-                    "raw_response": "",
-                    "findings": [],
-                    "summary": {
-                        "passed": 0,
-                        "failed": 0,
-                        "total": 0,
-                    },
-                    "error": str(exc),
-                }
-
-            # 6. Gabungkan temuan dari kedua jalur.
-            findings_a = jalur_a_result.get("findings", [])
-            findings_b = jalur_b_result.get("findings", [])
-            all_findings = findings_a + findings_b
-
-            summary = {
-                "physical": jalur_a_result.get("summary", {}),
-                "semantic": jalur_b_result.get("summary", {}),
-                "total_findings": len(all_findings),
-            }
-
-            # 7. Simpan hasil pemeriksaan.
-            document.metadata = {
-                **(document.metadata or {}),
-                "jalur_a": jalur_a_result,
-                "jalur_b": jalur_b_result,
-                "summary": summary,
-            }
-
-            # 7b. Hitung skor di backend dan simpan ke AuditResult.
-            result = build_result(jalur_a_result, jalur_b_result)
-
-            AuditResult.objects.update_or_create(
-                document=document,
-                defaults={
-                    "physical_score": result["format_score"],
-                    "semantic_score": result["semantic_score"],
-                    "final_score": result["total_score"],
-                    "findings": result["findings"],
-                    "recommendations": {
-                        "has_format_score": result["has_format_score"],
-                        "has_semantic_score": result["has_semantic_score"],
-                    },
-                },
-            )
-
-            document.status = "completed"
-            document.save(
-                update_fields=[
-                    "metadata",
-                    "status",
-                    "updated_at",
-                ]
-            )
+            # 3-7. Jalur A (fisik) + Jalur B (AI) -> skor -> simpan.
+            # Logikanya ada di pipeline.py agar sama dengan "Analisis ulang"
+            # di Web Dashboard, dan setiap analisis AI tercatat (AIRun).
+            checked = check_document(document, user=request.user)
 
             # 8. Kirim hasil ke Flutter.
             return Response(
                 {
                     "document": DocumentSerializer(document).data,
-                    "jalur_a": jalur_a_result,
-                    "jalur_b": jalur_b_result,
-                    "findings": all_findings,
-                    "summary": summary,
+                    "jalur_a": checked["jalur_a"],
+                    "jalur_b": checked["jalur_b"],
+                    "findings": checked["findings"],
+                    "summary": checked["summary"],
                 },
                 status=status.HTTP_201_CREATED,
             )

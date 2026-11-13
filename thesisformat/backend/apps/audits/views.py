@@ -5,7 +5,9 @@ Endpoint Web Dashboard (khusus admin / staf).
     GET   /api/v1/admin/documents/              daftar dokumen (filter + halaman)
     GET   /api/v1/admin/students/               daftar mahasiswa + ringkasan dokumen
     GET   /api/v1/admin/documents/<id>/         detail dokumen + seluruh temuan
-    PATCH /api/v1/admin/documents/<id>/review/  validasi / koreksi hasil AI
+    PATCH /api/v1/admin/documents/<id>/review/  tandai temuan keliru + catatan
+
+Endpoint pengawasan kualitas AI ada di ai_views.py.
 
 Sesuai arsitektur: dashboard hanya menampilkan dan memodifikasi data,
 tidak menambah data baru (input hanya dari aplikasi mobile).
@@ -24,9 +26,12 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.documents.models import Document
+from apps.documents.scoring import aspect_label, finding_aspect, scores_from_findings
+from apps.documents.semantic.jalur_b_service import ERROR_LABELS
 from apps.documents.serializers import get_document_result
+from apps.rules.models import RuleVersion
 
-from .models import AuditResult
+from .models import AuditResult, FindingFeedback
 
 User = get_user_model()
 
@@ -77,6 +82,34 @@ def _document_summary(document):
     }
 
 
+def _with_aspect(finding, index, rejected):
+    source, key = finding_aspect(finding)
+    return {
+        **finding,
+        "index": index,
+        "rejected": rejected,
+        "aspect": key,
+        "aspect_label": aspect_label(source, key),
+    }
+
+
+def _ai_run_info(run):
+    if run is None:
+        return None
+    return {
+        "id": run.pk,
+        "status": run.status,
+        "trigger": run.trigger,
+        "error_type": run.error_type,
+        "error_label": ERROR_LABELS.get(run.error_type, ""),
+        "model": run.model,
+        "duration_ms": run.duration_ms,
+        "rule_version": run.rule_version,
+        "created_at": run.created_at,
+        "unknown_categories": run.unknown_categories,
+    }
+
+
 def _document_detail(document, request):
     summary = _document_summary(document)
     audit = getattr(document, "audit_result", None)
@@ -86,12 +119,14 @@ def _document_detail(document, request):
     if audit is not None:
         rejected = set(audit.rejected_findings or [])
         for index, finding in enumerate(audit.findings or []):
-            findings.append({**finding, "index": index, "rejected": index in rejected})
+            findings.append(_with_aspect(finding, index, index in rejected))
     elif summary["has_result"]:
-        # Dokumen lama tanpa AuditResult: hanya bisa dilihat, tidak bisa direview.
+        # Dokumen lama tanpa AuditResult: hanya bisa dilihat, tidak bisa ditinjau.
         result = get_document_result(document)
         for index, finding in enumerate(result["findings"]):
-            findings.append({**finding, "index": index, "rejected": False})
+            findings.append(_with_aspect(finding, index, False))
+
+    runs = list(document.ai_runs.all()[:5])
 
     return {
         **summary,
@@ -99,13 +134,19 @@ def _document_detail(document, request):
         "ai_error": jalur_b.get("error"),
         "findings": findings,
         "can_review": audit is not None,
+        "can_reanalyze": bool(document.file),
+        "ai": _ai_run_info(runs[0] if runs else None),
+        "ai_runs": [_ai_run_info(run) for run in runs],
         "review": None if audit is None else {
             "status": audit.review_status,
+            # Skor dari sistem sebelum ada temuan yang ditandai keliru.
             "system_score": round(float(audit.final_score)),
+            # Skor hasil hitung ulang otomatis (None jika tidak ada temuan keliru).
             "corrected_score": (
                 None if audit.corrected_score is None
                 else round(float(audit.corrected_score))
             ),
+            "removed_findings": len(audit.rejected_findings or []),
             "note": audit.review_note,
             "reviewed_by": _student(audit.reviewed_by) if audit.reviewed_by else None,
             "reviewed_at": audit.reviewed_at,
@@ -172,6 +213,8 @@ class AdminStatsView(APIView):
                 key: review_counts.get(key, 0)
                 for key in AuditResult.ReviewStatus.values
             },
+            # Jumlah temuan yang ditandai keliru (umpan balik perbaikan AI).
+            "feedback_total": FindingFeedback.objects.count(),
         }
 
         # Rata-rata skor per jenis dokumen.
@@ -407,47 +450,79 @@ class AdminDocumentDetailView(APIView):
         return Response(_document_detail(document, request))
 
 
+# ---------------------------------------------------------------------------
+# Tinjauan admin: menandai temuan yang keliru.
+# Admin TIDAK menilai sendiri; skor dihitung ulang otomatis oleh sistem, dan
+# setiap tanda "keliru" disimpan sebagai umpan balik (FindingFeedback) untuk
+# mengamati pola kesalahan AI di halaman "Kinerja AI".
+# ---------------------------------------------------------------------------
+
+
 class ReviewSerializer(serializers.Serializer):
-    review_status = serializers.ChoiceField(choices=AuditResult.ReviewStatus.choices)
-    corrected_score = serializers.IntegerField(
-        min_value=0,
-        max_value=100,
+    rejected_findings = serializers.ListField(
+        child=serializers.IntegerField(min_value=0),
         required=False,
-        allow_null=True,
     )
     review_note = serializers.CharField(
         required=False,
         allow_blank=True,
         max_length=2000,
     )
-    rejected_findings = serializers.ListField(
-        child=serializers.IntegerField(min_value=0),
-        required=False,
-    )
 
-    def validate(self, attrs):
-        if (
-            attrs["review_status"] == AuditResult.ReviewStatus.CORRECTED
-            and attrs.get("corrected_score") is None
-        ):
+    def validate_rejected_findings(self, value):
+        findings = self.context["findings"]
+        invalid = [i for i in value if i >= len(findings)]
+        if invalid:
+            raise serializers.ValidationError(f"Indeks temuan tidak valid: {invalid}.")
+        passed = [i for i in value if findings[i].get("status") == "passed"]
+        if passed:
             raise serializers.ValidationError(
-                {"corrected_score": "Skor koreksi wajib diisi jika status 'Dikoreksi'."}
+                "Temuan yang lulus tidak perlu ditandai keliru."
             )
+        return sorted(set(value))
 
-        total = self.context["findings_count"]
-        rejected = attrs.get("rejected_findings")
-        if rejected is not None:
-            invalid = [i for i in rejected if i >= total]
-            if invalid:
-                raise serializers.ValidationError(
-                    {"rejected_findings": f"Indeks temuan tidak valid: {invalid}."}
-                )
-            attrs["rejected_findings"] = sorted(set(rejected))
-        return attrs
+
+def _feedback_key(source, aspect, detail):
+    return (source, aspect, (detail or "").strip())
+
+
+def _sync_feedback(document, audit, user):
+    """
+    Samakan FindingFeedback dengan tanda "keliru" saat ini:
+    - temuan yang baru ditandai -> buat umpan balik,
+    - temuan yang tandanya dibatalkan -> hapus umpan baliknya.
+    Umpan balik untuk temuan lama (sebelum analisis ulang) tidak disentuh.
+    """
+    rejected = set(audit.rejected_findings or [])
+    current = {}
+    for index, finding in enumerate(audit.findings or []):
+        source, aspect = finding_aspect(finding)
+        key = _feedback_key(source, aspect, finding.get("detail"))
+        current[key] = (index in rejected, finding)
+
+    existing = {
+        _feedback_key(fb.source, fb.aspect, fb.detail): fb
+        for fb in document.finding_feedback.all()
+    }
+
+    version = RuleVersion.current()
+    for key, (is_rejected, finding) in current.items():
+        if is_rejected and key not in existing:
+            FindingFeedback.objects.create(
+                document=document,
+                created_by=user,
+                source=key[0],
+                aspect=key[1],
+                title=str(finding.get("title", ""))[:255],
+                detail=key[2],
+                rule_version=version,
+            )
+        elif not is_rejected and key in existing:
+            existing[key].delete()
 
 
 class AdminDocumentReviewView(APIView):
-    """Validasi / koreksi hasil pemeriksaan AI oleh admin."""
+    """Simpan tinjauan admin: tanda temuan keliru + catatan."""
 
     permission_classes = [IsAdminUser]
 
@@ -462,38 +537,40 @@ class AdminDocumentReviewView(APIView):
         audit = getattr(document, "audit_result", None)
         if audit is None:
             return Response(
-                {"detail": "Dokumen ini belum memiliki hasil pemeriksaan yang bisa direview."},
+                {"detail": "Dokumen ini belum memiliki hasil pemeriksaan yang bisa ditinjau."},
                 status=status.HTTP_409_CONFLICT,
             )
 
+        findings = audit.findings or []
         serializer = ReviewSerializer(
             data=request.data,
-            context={"findings_count": len(audit.findings or [])},
+            context={"findings": findings},
         )
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
 
-        audit.review_status = data["review_status"]
-
-        if audit.review_status == AuditResult.ReviewStatus.CORRECTED:
-            audit.corrected_score = data["corrected_score"]
-        else:
-            audit.corrected_score = None
-
+        if "rejected_findings" in data:
+            audit.rejected_findings = data["rejected_findings"]
         if "review_note" in data:
             audit.review_note = data["review_note"].strip()
 
-        if "rejected_findings" in data:
-            audit.rejected_findings = data["rejected_findings"]
-
-        if audit.review_status == AuditResult.ReviewStatus.PENDING:
-            audit.reviewed_by = None
-            audit.reviewed_at = None
+        rejected = set(audit.rejected_findings or [])
+        if rejected:
+            kept = [f for i, f in enumerate(findings) if i not in rejected]
+            # Skor dihitung ulang otomatis dengan rumus yang sama (40/60).
+            audit.corrected_score = scores_from_findings(kept)["total_score"]
+            audit.review_status = AuditResult.ReviewStatus.CORRECTED
         else:
-            audit.reviewed_by = request.user
-            audit.reviewed_at = timezone.now()
+            audit.corrected_score = None
+            audit.review_status = AuditResult.ReviewStatus.VALIDATED
 
+        audit.reviewed_by = request.user
+        audit.reviewed_at = timezone.now()
         audit.save()
+
+        _sync_feedback(document, audit, request.user)
 
         document = _base_queryset().get(pk=pk)
         return Response(_document_detail(document, request))
+
+

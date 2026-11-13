@@ -5,6 +5,7 @@ import time
 import httpx
 from google.genai import errors
 
+from apps.documents.scoring import normalize_category
 from apps.documents.semantic.gemini_client import (
     GEMINI_MODELS,
     GEMINI_TIMEOUT_SECONDS,
@@ -20,6 +21,18 @@ TRANSIENT_CODES = {429, 500, 502, 503, 504}
 # upload tidak menggantung terlalu lama.
 TOTAL_BUDGET_SECONDS = 150
 
+# Jenis penyebab kegagalan AI (dipakai halaman "Kinerja AI").
+ERROR_LABELS = {
+    "unavailable": "Gemini sedang sibuk (503)",
+    "timeout": "Waktu habis (504/timeout)",
+    "quota": "Kuota API habis (429)",
+    "connection": "Koneksi internet terputus",
+    "config": "API key/model tidak valid",
+    "no_text": "Teks dokumen tidak terbaca",
+    "invalid_response": "Respons AI tidak sesuai format",
+    "other": "Lainnya",
+}
+
 
 def _is_transient(exc):
     if isinstance(exc, errors.APIError):
@@ -28,10 +41,33 @@ def _is_transient(exc):
     return isinstance(exc, httpx.TransportError)
 
 
-def generate_with_retry(prompt, models=None):
+def classify_error(exc):
+    """Kelompokkan error menjadi salah satu kunci ERROR_LABELS."""
+    if isinstance(exc, errors.APIError):
+        code = getattr(exc, "code", None)
+        if code == 503 or code in (500, 502):
+            return "unavailable"
+        if code == 504:
+            return "timeout"
+        if code == 429:
+            return "quota"
+        if code in (400, 401, 403, 404):
+            return "config"
+        return "other"
+    if isinstance(exc, httpx.TimeoutException):
+        return "timeout"
+    if isinstance(exc, httpx.TransportError):
+        return "connection"
+    if isinstance(exc, (json.JSONDecodeError, ValueError)):
+        return "invalid_response"
+    return "other"
+
+
+def generate_with_fallback(prompt, models=None):
     """
     Panggil Gemini dengan model utama; jika sibuk/timeout, pindah
     ke model cadangan. Error lain (mis. API key salah) langsung dilempar.
+    Mengembalikan (teks, nama model yang berhasil menjawab).
     """
     models = models or GEMINI_MODELS
     started = time.monotonic()
@@ -45,7 +81,7 @@ def generate_with_retry(prompt, models=None):
             time.sleep(1)
 
         try:
-            return generate(prompt, model=model)
+            return generate(prompt, model=model), model
 
         except Exception as exc:
             if not _is_transient(exc):
@@ -63,12 +99,36 @@ def generate_with_retry(prompt, models=None):
     raise last_exc
 
 
-def run_jalur_b(parsed_document, document_type=None):
+def generate_with_retry(prompt, models=None):
+    """Sama seperti generate_with_fallback, tetapi hanya mengembalikan teks."""
+    text, _model = generate_with_fallback(prompt, models)
+    return text
+
+
+def _empty_result(error, error_type, started, model=""):
+    return {
+        "raw_response": "",
+        "findings": [],
+        "summary": {"passed": 0, "failed": 0, "total": 0},
+        "error": error,
+        "error_type": error_type,
+        "model": model,
+        "duration_ms": round((time.monotonic() - started) * 1000),
+        "unknown_categories": [],
+    }
+
+
+def run_jalur_b(parsed_document, document_type=None, aspects=None):
     """
     Menganalisis isi dokumen menggunakan Gemini.
     Jika Gemini gagal, kembalikan error tanpa menghentikan
     pemeriksaan fisik Jalur A.
+
+    aspects: aspek aktif beserta instruksinya (dari MasterRule semantic).
+    Hasil juga mencatat model, durasi, dan jenis error untuk
+    halaman "Kinerja AI" di dashboard.
     """
+    started = time.monotonic()
 
     paragraphs = parsed_document.get("paragraphs", [])
     full_text = " ".join(
@@ -78,23 +138,20 @@ def run_jalur_b(parsed_document, document_type=None):
     ).strip()
 
     if not full_text:
-        return {
-            "raw_response": "",
-            "findings": [],
-            "summary": {
-                "passed": 0,
-                "failed": 0,
-                "total": 0,
-            },
-            "error": "Tidak ada teks yang berhasil diekstrak dari dokumen.",
-        }
+        return _empty_result(
+            "Tidak ada teks yang berhasil diekstrak dari dokumen.",
+            "no_text",
+            started,
+        )
 
-    prompt = build_semantic_prompt(full_text, document_type)
+    prompt = build_semantic_prompt(full_text, document_type, aspects)
+    allowed = None if aspects is None else {a["key"] for a in aspects}
 
     raw_response = ""
+    model = ""
 
     try:
-        raw_response = generate_with_retry(prompt)
+        raw_response, model = generate_with_fallback(prompt)
 
         if not isinstance(raw_response, str) or not raw_response.strip():
             raise ValueError("Gemini tidak memberikan respons teks.")
@@ -115,6 +172,7 @@ def run_jalur_b(parsed_document, document_type=None):
             raise ValueError("Format findings dari Gemini tidak valid.")
 
         findings = []
+        unknown = set()
 
         for item in raw_findings:
             if not isinstance(item, dict):
@@ -124,11 +182,19 @@ def run_jalur_b(parsed_document, document_type=None):
             if not issue:
                 continue
 
+            raw_category = str(item.get("category", "")).strip()
+            category = normalize_category(raw_category)
+            if not category:
+                unknown.add(raw_category or "(kosong)")
+            elif allowed is not None and category not in allowed:
+                # Aspek dinonaktifkan admin: abaikan.
+                continue
+
             status_value = str(item.get("status", "")).lower().strip()
             status = "passed" if status_value == "passed" else "failed"
 
             findings.append({
-                "category": str(item.get("category", "")).strip().lower(),
+                "category": category,
                 "issue": issue,
                 "location": str(
                     item.get("location") or "Lokasi tidak diketahui"
@@ -151,19 +217,17 @@ def run_jalur_b(parsed_document, document_type=None):
                 "failed": failed_count,
                 "total": len(findings),
             },
+            "error": None,
+            "error_type": "",
+            "model": model,
+            "duration_ms": round((time.monotonic() - started) * 1000),
+            "unknown_categories": sorted(unknown),
         }
 
     except Exception as exc:
         # Kegagalan Gemini tidak perlu menghentikan seluruh proses upload.
         print(f"Analisis Jalur B gagal: {exc}")
 
-        return {
-            "raw_response": raw_response,
-            "findings": [],
-            "summary": {
-                "passed": 0,
-                "failed": 0,
-                "total": 0,
-            },
-            "error": str(exc),
-        }
+        result = _empty_result(str(exc), classify_error(exc), started, model)
+        result["raw_response"] = raw_response
+        return result
