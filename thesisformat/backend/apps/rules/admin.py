@@ -7,6 +7,7 @@ from .models import MasterRule
 class MasterRuleAdmin(admin.ModelAdmin):
     list_display = (
         "rule_key",
+        "document_type",
         "category",
         "active",
         "created_at",
@@ -19,6 +20,7 @@ class MasterRuleAdmin(admin.ModelAdmin):
     )
 
     list_filter = (
+        "document_type",
         "category",
         "active",
     )

@@ -5,8 +5,9 @@ Skor dihitung di backend (satu sumber kebenaran) agar Flutter hanya
 menampilkan data, sesuai API_CONTRACT_FRONTEND.md.
 """
 
-FORMAT_WEIGHT = 0.6
-SEMANTIC_WEIGHT = 0.4
+# Sesuai Laporan Perancangan: 40% aspek fisik + 60% aspek semantik.
+FORMAT_WEIGHT = 0.4
+SEMANTIC_WEIGHT = 0.6
 
 SEMANTIC_CATEGORIES = {
     "sitasi": "Sitasi & kepustakaan",

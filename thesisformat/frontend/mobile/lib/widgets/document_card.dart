@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../models/document_model.dart';
+import '../models/document_type.dart';
 import '../theme/app_theme.dart';
 
 class DocumentCard extends StatelessWidget {
@@ -11,15 +12,17 @@ class DocumentCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final statusColor = document.score >= 90 ? context.appColors.success : document.score >= 75 ? context.appColors.purple : context.appColors.warning;
     final statusBackground = document.score >= 90 ? context.appColors.successBackground : document.score >= 75 ? context.appColors.purpleSoft : context.appColors.warningBackground;
-    final documentType = document.displayDocumentType.toLowerCase();
-    final iconColor = documentType == 'proposal'
+    final typeId = DocumentType.fromRaw(document.documentType)?.id ?? '';
+    final isProposal = typeId.startsWith('proposal');
+    final isThesis = typeId == 'tugas_akhir';
+    final iconColor = isProposal
         ? context.appColors.purple
-        : documentType == 'thesis'
+        : isThesis
             ? context.appColors.warning
             : context.appColors.success;
-    final iconBackground = documentType == 'proposal'
+    final iconBackground = isProposal
         ? context.appColors.purpleSoft
-        : documentType == 'thesis'
+        : isThesis
             ? context.appColors.warningBackground
             : context.appColors.successBackground;
     return Card(child: InkWell(

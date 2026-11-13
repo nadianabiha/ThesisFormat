@@ -5,9 +5,14 @@ from django.db import models
 class Document(models.Model):
 
     class DocumentType(models.TextChoices):
-        PROPOSAL = "proposal", "Proposal"
-        SKRIPSI = "skripsi", "Skripsi"
-        LAPORAN = "laporan", "Laporan"
+        # Sesuai Panduan Penulisan Karya Ilmiah Polinela.
+        # Nilai harus sama dengan lib/models/document_type.dart di Flutter.
+        PRAKTIK = "praktik", "Laporan Praktik"
+        PKL = "pkl", "Laporan PKL/Magang"
+        TUGAS_AKHIR = "tugas_akhir", "Laporan Tugas Akhir/Skripsi"
+        PROPOSAL_PENGABDIAN = "proposal_pengabdian", "Proposal Pengabdian Masyarakat"
+        PROPOSAL_PENELITIAN = "proposal_penelitian", "Proposal Penelitian"
+        MAKALAH_ILMIAH = "makalah_ilmiah", "Makalah Ilmiah"
 
     class Status(models.TextChoices):
         UPLOADED = "uploaded", "Uploaded"

@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 
 import '../models/document_model.dart';
+import '../models/document_type.dart';
 import '../services/api_service.dart';
 import '../widgets/document_card.dart';
 import 'result_screen.dart';
@@ -25,10 +26,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
 
   final List<String> _filters = [
     'All',
-    'Tugas Akhir',
-    'Proposal TA',
-    'PKL/Magang',
-    'Praktik',
+    ...DocumentType.all.map((type) => type.label),
   ];
 
   late Future<List<DocumentModel>> _historyFuture;
@@ -57,52 +55,10 @@ class _HistoryScreenState extends State<HistoryScreen> {
     super.dispose();
   }
 
-  // Menyamakan variasi penulisan jenis dokumen.
-  String _normalizeType(String value) {
-    return value
-        .toLowerCase()
-        .trim()
-        .replaceAll('-', '_')
-        .replaceAll(' ', '_');
-  }
-
   // Memeriksa jenis dokumen berdasarkan filter yang dipilih.
   bool _matchesType(DocumentModel document) {
-    final String type = _normalizeType(document.documentType);
-
-    switch (_filter) {
-      case 'Tugas Akhir':
-        return {
-          'skripsi',
-          'thesis',
-          'laporan_ta',
-          'tugas_akhir',
-        }.contains(type);
-
-      case 'Proposal TA':
-        return {
-          'proposal',
-          'proposal_ta',
-          'proposal_skripsi',
-        }.contains(type);
-
-      case 'PKL/Magang':
-        return {
-          'pkl',
-          'magang',
-          'praktik_kerja_lapangan',
-        }.contains(type);
-
-      case 'Praktik':
-        return {
-          'praktik',
-          'praktikum',
-        }.contains(type);
-
-      case 'All':
-      default:
-        return true;
-    }
+    if (_filter == 'All') return true;
+    return DocumentType.fromRaw(document.documentType)?.label == _filter;
   }
 
   // Menerapkan pencarian nama file dan filter jenis dokumen.

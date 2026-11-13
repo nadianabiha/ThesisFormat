@@ -98,12 +98,6 @@ class ApiService {
       );
     }
 
-    final backendType = switch (documentType) {
-      'skripsi' || 'thesis' => 'skripsi',
-      'proposal' => 'proposal',
-      _ => 'laporan',
-    };
-
     final request = http.MultipartRequest(
       'POST',
       Uri.parse('$baseUrl/api/v1/documents/upload/'),
@@ -111,7 +105,8 @@ class ApiService {
 
     request.headers['Authorization'] = 'Bearer $token';
     request.fields['title'] = fileName;
-    request.fields['document_type'] = backendType;
+    // ID jenis dokumen sudah sama dengan backend (lihat document_type.dart).
+    request.fields['document_type'] = documentType;
 
     request.files.add(
       http.MultipartFile.fromBytes(

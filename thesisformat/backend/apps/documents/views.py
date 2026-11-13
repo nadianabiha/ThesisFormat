@@ -38,10 +38,10 @@ class DocumentUploadView(APIView):
         document = serializer.save(user=request.user)
 
         try:
-            # 3. Ambil aturan fisik aktif dari database.
-            physical_rules = MasterRule.objects.filter(
-                category=MasterRule.Category.PHYSICAL,
-                active=True,
+            # 3. Ambil aturan fisik aktif sesuai jenis dokumen.
+            physical_rules = MasterRule.for_document(
+                MasterRule.Category.PHYSICAL,
+                document.document_type,
             )
 
             # 4. Jalankan pemeriksaan fisik (Jalur A).
@@ -54,7 +54,7 @@ class DocumentUploadView(APIView):
             try:
                 jalur_b_result = run_jalur_b(
                     jalur_a_result["parsed_document"],
-                    document_type=document.document_type,
+                    document_type=document.get_document_type_display(),
                 )
 
             except Exception as exc:

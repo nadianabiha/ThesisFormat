@@ -1,5 +1,6 @@
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import '../models/document_type.dart';
 import '../theme/app_theme.dart';
 import 'processing_screen.dart';
 import '../widgets/upload_card.dart';
@@ -16,14 +17,6 @@ class _UploadScreenState extends State<UploadScreen> {
   PlatformFile? _file;
   String? _error;
   bool _isUploading = false;
-
-  String _documentTypeId(String label) => switch (label) {
-    'Tugas Akhir' => 'laporan_ta',
-    'Proposal TA' => 'proposal_ta',
-    'PKL/Magang' => 'pkl',
-    'Praktik' => 'praktik',
-    _ => label,
-  };
 
   Future<void> _pickFile() async {
     final result = await FilePicker.platform.pickFiles(type: FileType.custom, allowedExtensions: const ['pdf', 'docx'], withData: true);
@@ -51,7 +44,7 @@ class _UploadScreenState extends State<UploadScreen> {
       const SizedBox(height: 24),
       const Text('Document type', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
       const SizedBox(height: 11),
-      Wrap(spacing: 8, runSpacing: 7, children: ['Tugas Akhir', 'Proposal TA', 'PKL/Magang', 'Praktik'].map((type) => ChoiceChip(label: Text(type, style: TextStyle(color: _type == _documentTypeId(type) ? context.appColors.primaryExtraDark : context.appColors.textPrimary, fontWeight: FontWeight.w600)), selected: _type == _documentTypeId(type), onSelected: (_) => setState(() => _type = _documentTypeId(type)))).toList()),
+      Wrap(spacing: 8, runSpacing: 7, children: DocumentType.all.map((type) => ChoiceChip(label: Text(type.label, style: TextStyle(color: _type == type.id ? context.appColors.primaryExtraDark : context.appColors.textPrimary, fontWeight: FontWeight.w600)), selected: _type == type.id, onSelected: (_) => setState(() => _type = type.id))).toList()),
       const SizedBox(height: 24),
       const Text('Document file', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
       const SizedBox(height: 11),

@@ -1,5 +1,6 @@
 
 import 'audit_result.dart';
+import 'document_type.dart';
 
 class DocumentModel {
   const DocumentModel({
@@ -28,20 +29,7 @@ class DocumentModel {
 
   String get type => documentType;
 
-  String get displayDocumentType {
-    switch (documentType.toLowerCase()) {
-      case 'laporan_ta':
-        return 'Tugas Akhir';
-      case 'proposal_ta':
-        return 'Proposal TA';
-      case 'pkl':
-        return 'PKL/Magang';
-      case 'praktik':
-        return 'Praktik';
-      default:
-        return documentType;
-    }
-  }
+  String get displayDocumentType => DocumentType.labelOf(documentType);
 
   String get date => uploadDate;
 
