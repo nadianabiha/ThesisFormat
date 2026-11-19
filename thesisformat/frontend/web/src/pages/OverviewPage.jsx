@@ -14,7 +14,7 @@ import {
   PointElement,
   Tooltip,
 } from 'chart.js'
-import { Bar, Chart, Doughnut } from 'react-chartjs-2'
+import { Bar, Doughnut } from 'react-chartjs-2'
 import {
   AlertTriangle,
   ArrowRight,
@@ -265,51 +265,45 @@ export default function OverviewPage() {
 
       <div className="chart-grid">
         <ChartCard
-          title="Tren unggahan"
-          subtitle="Jumlah dokumen dan rata-rata skor per minggu"
+          title="Dokumen diunggah per minggu"
+          subtitle="Arahkan kursor ke batang untuk melihat rata-rata skornya"
         >
-          <Chart
-            type="bar"
+          <Bar
             data={{
               labels: trend.map((t) => formatShortDate(t.week_start)),
               datasets: [
                 {
-                  type: 'bar',
                   label: 'Dokumen diunggah',
                   data: trend.map((t) => t.uploads),
-                  backgroundColor: 'rgba(92, 198, 247, 0.55)',
+                  backgroundColor: 'rgba(92, 198, 247, 0.75)',
                   hoverBackgroundColor: COLORS.primary,
                   borderRadius: 8,
-                  yAxisID: 'y',
-                  order: 2,
-                },
-                {
-                  type: 'line',
-                  label: 'Rata-rata skor',
-                  data: trend.map((t) => t.average_score),
-                  borderColor: COLORS.accent,
-                  backgroundColor: COLORS.accent,
-                  tension: 0.35,
-                  spanGaps: true,
-                  yAxisID: 'y1',
-                  order: 1,
+                  maxBarThickness: 46,
                 },
               ],
             }}
             options={{
               maintainAspectRatio: false,
-              interaction: { mode: 'index', intersect: false },
-              plugins: { legend: { position: 'bottom' } },
+              plugins: {
+                legend: { display: false },
+                tooltip: {
+                  callbacks: {
+                    title: (items) => `Minggu ${items[0].label}`,
+                    label: (item) => `${item.raw} dokumen diunggah`,
+                    footer: (items) => {
+                      const score = trend[items[0].dataIndex].average_score
+                      return score === null ? 'Belum ada skor' : `Rata-rata skor: ${score}`
+                    },
+                  },
+                },
+              },
               scales: {
                 x: { ...gridScale, grid: { display: false } },
-                y: { ...gridScale, beginAtZero: true, ticks: { precision: 0 }, title: { display: true, text: 'Dokumen' } },
-                y1: {
+                y: {
                   ...gridScale,
-                  position: 'right',
-                  min: 0,
-                  max: 100,
-                  grid: { drawOnChartArea: false },
-                  title: { display: true, text: 'Skor' },
+                  beginAtZero: true,
+                  ticks: { precision: 0 },
+                  title: { display: true, text: 'Jumlah dokumen' },
                 },
               },
             }}

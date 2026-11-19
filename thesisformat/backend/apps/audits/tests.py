@@ -270,9 +270,11 @@ class AdminDashboardTests(APITestCase):
     def test_rules_list_and_update_creates_version(self):
         self._login(self.admin)
         data = self.client.get("/api/v1/admin/rules/").data
-        # Aturan semantik diisi oleh migration (7 aspek).
-        self.assertEqual(len(data["semantic"]), 7)
-        self.assertEqual(data["current_version"], 0)
+        # Migration: 7 aspek umum + 6 aturan susunan bab per jenis dokumen,
+        # tercatat sebagai 1 versi (Penyesuaian Pedoman Polinela 2018).
+        self.assertEqual(len(data["semantic"]), 13)
+        self.assertEqual(data["current_version"], 1)
+        self.assertEqual(RuleVersion.objects.count(), 1)
 
         abstrak = MasterRule.objects.get(category="semantic", rule_key="abstrak", document_type="")
         response = self.client.patch(
@@ -282,7 +284,8 @@ class AdminDashboardTests(APITestCase):
         )
         self.assertEqual(response.status_code, 200, response.data)
         self.assertEqual(response.data["version"], RuleVersion.current())
-        version = RuleVersion.objects.get()
+        self.assertEqual(RuleVersion.current(), 2)
+        version = RuleVersion.objects.get(pk=2)
         self.assertEqual(version.note, "Longgarkan abstrak")
         self.assertEqual(version.changes[0]["after"]["instruction"], "Abstrak maksimal 300 kata.")
 
@@ -407,6 +410,117 @@ class AdminDashboardTests(APITestCase):
         self.assertEqual(response.status_code, 201, response.data)
         run = AIRun.objects.get(document_id=response.data["document"]["id"])
         self.assertEqual((run.trigger, run.status, run.model), ("upload", "success", "gemini-3.8-flash"))
+
+
+class PedomanPolinelaRulesTests(APITestCase):
+    """Aturan hasil migration 0005 (Pedoman Penulisan Polinela 2018)."""
+
+    def test_physical_rules_body_scope_and_margin(self):
+        margin = MasterRule.objects.get(category="physical", rule_key="margin")
+        self.assertEqual(
+            margin.rule_value["value"],
+            {"top_margin": 3, "right_margin": 3, "bottom_margin": 3, "left_margin": 4},
+        )
+
+    def test_chapter_structure_per_document_type(self):
+        def hierarki(document_type):
+            aspects = MasterRule.semantic_aspects(document_type)
+            return next(a["instruction"] for a in aspects if a["key"] == "hierarki_bab")
+
+        self.assertIn("KEADAAN UMUM", hierarki("pkl"))
+        self.assertIn("TUJUAN PRAKTIKUM", hierarki("praktik"))
+        self.assertIn("RENCANA ANGGARAN BIAYA", hierarki("proposal_penelitian"))
+        self.assertIn("Analisis Situasi", hierarki("proposal_pengabdian"))
+        self.assertIn("METODOLOGI", hierarki("makalah_ilmiah"))
+        self.assertIn("TINJAUAN PUSTAKA", hierarki("tugas_akhir"))
+        # Aspek lain tetap memakai aturan umum.
+        self.assertEqual(len(MasterRule.semantic_aspects("pkl")), 7)
+
+
+class PhysicalCheckerTests(SimpleTestCase):
+    """Pemeriksa format hanya menilai teks isi (Pedoman 1.4)."""
+
+    BODY = "Ini adalah kalimat teks isi yang cukup panjang untuk diperiksa formatnya."
+
+    def _paragraph(self, text, size=12, alignment="JUSTIFY", spacing=1.5, bold=False, style="Normal"):
+        return {
+            "text": text, "style": style, "alignment": alignment, "line_spacing": spacing,
+            "runs": [{"text": text, "font_name": "Times New Roman", "font_size": size, "bold": bold}],
+        }
+
+    def _check(self, paragraphs, rules, sections=None):
+        from apps.documents.checker.physical_checker import check_physical_rules
+        document = {"paragraphs": paragraphs, "sections": sections or []}
+        return {f["rule_key"]: f for f in check_physical_rules(document, rules)}
+
+    def test_headings_captions_and_abstract_are_not_body(self):
+        paragraphs = [
+            self._paragraph("I. PENDAHULUAN", size=14, alignment="CENTER", spacing=1.0, bold=True),
+            self._paragraph(self.BODY),
+            self._paragraph("1.1 Latar Belakang", bold=True, alignment="LEFT", spacing=1.0),
+            self._paragraph(self.BODY),
+            self._paragraph("Tabel 1. Hasil analisis kandungan unsur hara pada tanah percobaan",
+                            size=10, alignment="CENTER", spacing=1.0),
+            self._paragraph("ABSTRAK", bold=True, alignment="CENTER"),
+            self._paragraph(self.BODY, spacing=1.0),  # abstrak memang spasi 1
+            self._paragraph("Judul Bab Memakai Style Heading", size=14, alignment="CENTER",
+                            spacing=1.0, style="Heading 1"),
+            self._paragraph(self.BODY),
+        ]
+        rules = {"font_size": {"value": 12}, "alignment": {"value": "JUSTIFY"},
+                 "line_spacing": {"value": 1.5}}
+        result = self._check(paragraphs, rules)
+        self.assertEqual({k: v["status"] for k, v in result.items()},
+                         {"font_size": "passed", "alignment": "passed", "line_spacing": "passed"})
+
+        # Cara lama (semua paragraf) menilai judul & tabel sebagai salah.
+        old = {k: {**v, "scope": "all"} for k, v in rules.items()}
+        self.assertEqual(self._check(paragraphs, old)["font_size"]["status"], "failed")
+
+    def test_real_body_errors_still_detected(self):
+        paragraphs = [self._paragraph(self.BODY, size=11, alignment="LEFT", spacing=1.15)]
+        rules = {"font_size": {"value": 12}, "alignment": {"value": "JUSTIFY"},
+                 "line_spacing": {"value": 1.5}}
+        result = self._check(paragraphs, rules)
+        self.assertTrue(all(f["status"] == "failed" for f in result.values()))
+        self.assertTrue(result["font_size"]["message"].startswith("Teks isi:"))
+
+    def test_cover_page_is_not_body(self):
+        # Judul sampul panjang (>15 kata) dan baris "Salah satu syarat..." di sampul.
+        cover_title = ("RANCANG BANGUN PROTOTIPE SISTEM MANAJEMEN BANDWIDTH BERBASIS MIKROTIK "
+                       "UNTUK MENINGKATKAN KUALITAS LAYANAN JARINGAN INTERNET DI LINGKUNGAN KAMPUS")
+        paragraphs = [
+            self._paragraph(cover_title, size=14, alignment="CENTER", spacing=1.0, bold=True),
+            self._paragraph("Salah Satu Syarat tugas mata kuliah Penulisan Karya Ilmiah",
+                            size=14, alignment="CENTER", spacing=1.0),
+            self._paragraph("KATA PENGANTAR", size=14, alignment="CENTER", bold=True),
+            self._paragraph("BAB I PENDAHULUAN", size=14, alignment="CENTER", bold=True),
+            self._paragraph(self.BODY),
+        ]
+        rules = {"font_size": {"value": 12}, "alignment": {"value": "JUSTIFY"},
+                 "line_spacing": {"value": 1.5}}
+        result = self._check(paragraphs, rules)
+        self.assertEqual({k: v["status"] for k, v in result.items()},
+                         {"font_size": "passed", "alignment": "passed", "line_spacing": "passed"})
+
+    def test_document_without_known_sections_is_still_checked(self):
+        paragraphs = [self._paragraph(self.BODY, size=11)]
+        result = self._check(paragraphs, {"font_size": {"value": 12}})
+        self.assertEqual(result["font_size"]["status"], "failed")
+
+    def test_exact_line_spacing_length_is_ignored(self):
+        # Spasi "exact" dari Word berupa panjang absolut (mis. 16510), bukan 1,5.
+        paragraphs = [self._paragraph(self.BODY, spacing=16510), self._paragraph(self.BODY)]
+        result = self._check(paragraphs, {"line_spacing": {"value": 1.5}})
+        self.assertEqual(result["line_spacing"]["status"], "passed")
+
+    def test_margin_message_is_readable(self):
+        rules = {"margin": {"value": {"top_margin": 3, "right_margin": 3,
+                                      "bottom_margin": 3, "left_margin": 4}}}
+        sections = [{"top_margin": 2.54, "bottom_margin": 3, "left_margin": 4, "right_margin": 3}]
+        result = self._check([], rules, sections)["margin"]
+        self.assertEqual(result["status"], "failed")
+        self.assertIn("atas 2,54 cm, seharusnya 3 cm", result["message"])
 
 
 class ScoringHelpersTests(SimpleTestCase):

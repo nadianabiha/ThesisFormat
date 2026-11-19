@@ -424,7 +424,7 @@ class _Greeting extends StatelessWidget {
               decoration: BoxDecoration(
                 color: c.warningBackground,
                 shape: BoxShape.circle,
-                border: Border.all(color: c.card, width: 3),
+                border: Border.all(color: c.surface, width: 3),
               ),
               alignment: Alignment.center,
               child: Text(
@@ -530,7 +530,7 @@ class _HeroBanner extends StatelessWidget {
                     vertical: 10,
                   ),
                   decoration: BoxDecoration(
-                    color: Colors.white,
+                    color: c.accent,
                     borderRadius: BorderRadius.circular(30),
                   ),
                   child: Row(
@@ -542,7 +542,7 @@ class _HeroBanner extends StatelessWidget {
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
-                            color: c.heroEnd,
+                            color: c.navOnSelected,
                             fontWeight: FontWeight.w700,
                             fontSize: 13,
                           ),
@@ -551,7 +551,7 @@ class _HeroBanner extends StatelessWidget {
                       const SizedBox(width: 6),
                       Icon(
                         Icons.arrow_forward_rounded,
-                        color: c.heroEnd,
+                        color: c.navOnSelected,
                         size: 16,
                       ),
                     ],

@@ -5,12 +5,10 @@ import {
   CategoryScale,
   Chart as ChartJS,
   Legend,
-  LineElement,
   LinearScale,
-  PointElement,
   Tooltip,
 } from 'chart.js'
-import { Bar, Chart } from 'react-chartjs-2'
+import { Bar } from 'react-chartjs-2'
 import {
   Activity,
   AlertTriangle,
@@ -27,10 +25,10 @@ import { getAIPerformance, getRetestCandidates, reanalyzeDocument } from '../api
 import PageNav from '../components/PageNav'
 import { EmptyState, ErrorAlert, Spinner } from '../components/ui'
 import { COLORS } from '../utils/constants'
-import { formatDateTime, formatNumber, formatShortDate } from '../utils/format'
+import { formatDateTime, formatNumber } from '../utils/format'
 import { useAsync } from '../utils/useAsync'
 
-ChartJS.register(BarElement, CategoryScale, Legend, LineElement, LinearScale, PointElement, Tooltip)
+ChartJS.register(BarElement, CategoryScale, Legend, LinearScale, Tooltip)
 
 const SOURCE_LABEL = { semantic: 'Isi (AI)', physical: 'Format' }
 
@@ -209,7 +207,8 @@ export default function AIPerformancePage() {
   if (!data && loading) return <Spinner />
   if (!data && error) return <ErrorAlert error={error} onRetry={reload} />
 
-  const { runs, trend, aspects, recent_feedback: recent, versions } = data
+  const { runs, aspects, recent_feedback: recent, versions } = data
+  const recentRuns = data.recent_runs ?? []
   const problemAspects = aspects.filter((a) => a.feedback_count > 0)
 
   return (
@@ -306,50 +305,43 @@ export default function AIPerformancePage() {
         <section className="card">
           <div className="card-title">
             <div>
-              <h2>Tren keberhasilan AI</h2>
-              <p>Jumlah analisis dan persentase berhasil per minggu</p>
+              <h2>Analisis AI terbaru</h2>
+              <p>Dokumen yang terakhir diperiksa AI, berhasil atau gagal, dan penyebabnya.</p>
             </div>
+            <Link to="/documents?ai=failed" className="btn btn-ghost btn-sm">
+              Lihat yang gagal
+            </Link>
           </div>
-          <div className="chart-box small">
-            <Chart
-              type="bar"
-              data={{
-                labels: trend.map((t) => formatShortDate(t.week_start)),
-                datasets: [
-                  {
-                    type: 'bar',
-                    label: 'Analisis',
-                    data: trend.map((t) => t.runs),
-                    backgroundColor: 'rgba(92, 198, 247, 0.55)',
-                    borderRadius: 8,
-                    yAxisID: 'y',
-                    order: 2,
-                  },
-                  {
-                    type: 'line',
-                    label: 'Berhasil (%)',
-                    data: trend.map((t) => t.success_rate),
-                    borderColor: COLORS.success,
-                    backgroundColor: COLORS.success,
-                    tension: 0.35,
-                    spanGaps: true,
-                    yAxisID: 'y1',
-                    order: 1,
-                  },
-                ],
-              }}
-              options={{
-                maintainAspectRatio: false,
-                interaction: { mode: 'index', intersect: false },
-                plugins: { legend: { position: 'bottom' } },
-                scales: {
-                  x: { grid: { display: false } },
-                  y: { beginAtZero: true, ticks: { precision: 0 }, grid: { color: COLORS.grid } },
-                  y1: { position: 'right', min: 0, max: 100, grid: { drawOnChartArea: false } },
-                },
-              }}
-            />
-          </div>
+          {recentRuns.length === 0 ? (
+            <EmptyState icon={Activity} title="Belum ada analisis AI pada periode ini" />
+          ) : (
+            <div className="run-list">
+              {recentRuns.map((run) => (
+                <Link
+                  key={run.id}
+                  to={`/documents/${run.document_id}`}
+                  state={{ from: '/ai-performance' }}
+                  className="run-row"
+                >
+                  <span className={`run-icon ${run.status === 'success' ? 'ok' : 'fail'}`}>
+                    {run.status === 'success' ? <CheckCircle2 size={18} /> : <XCircle size={18} />}
+                  </span>
+                  <span className="run-main">
+                    <span className="cell-title" title={run.document_title}>
+                      {run.document_title}
+                    </span>
+                    <span className="small muted">
+                      {formatDateTime(run.created_at)}
+                      {run.trigger === 'reanalyze' && ' · analisis ulang admin'}
+                    </span>
+                  </span>
+                  <span className={`badge tone-${run.status === 'success' ? 'success' : 'error'}`}>
+                    {run.status === 'success' ? 'Berhasil' : run.error_label || 'Gagal'}
+                  </span>
+                </Link>
+              ))}
+            </div>
+          )}
         </section>
 
         <section className="card">

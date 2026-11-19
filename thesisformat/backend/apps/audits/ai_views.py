@@ -120,6 +120,8 @@ class AIPerformanceView(APIView):
             {
                 "week_start": monday.isoformat(),
                 "runs": total,
+                "success": ok,
+                "failed": total - ok,
                 "success_rate": _rate(ok, total),
             }
             for monday, (total, ok) in week_rows.items()
@@ -143,11 +145,30 @@ class AIPerformanceView(APIView):
                 ],
             },
             "trend": trend,
+            "recent_runs": self._recent_runs(runs),
             "aspects": self._aspects(since),
             "recent_feedback": self._recent_feedback(since),
             "versions": self._versions(),
             "feedback_total": FindingFeedback.objects.filter(created_at__gte=since).count(),
         })
+
+    @staticmethod
+    def _recent_runs(runs, limit=10):
+        """Analisis AI terbaru: dokumen apa, berhasil/gagal, dan penyebabnya."""
+        return [
+            {
+                "id": run.pk,
+                "document_id": run.document_id,
+                "document_title": run.document.title,
+                "created_at": run.created_at,
+                "status": run.status,
+                "trigger": run.trigger,
+                "error_label": ERROR_LABELS.get(run.error_type, "") if run.error_type else "",
+                "model": run.model,
+                "duration_ms": run.duration_ms,
+            }
+            for run in runs.select_related("document").order_by("-created_at")[:limit]
+        ]
 
     @staticmethod
     def _aspects(since):

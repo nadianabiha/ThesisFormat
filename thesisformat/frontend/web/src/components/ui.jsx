@@ -63,7 +63,7 @@ export function PillChip({ label, selected, onClick, icon: Icon, color }) {
         <span
           className="pill-chip-icon"
           style={{
-            background: selected ? 'rgba(255,255,255,.25)' : `${color ?? '#1E88D6'}1f`,
+            background: selected ? 'rgba(255,255,255,.25)' : `${color ?? '#0B3B5B'}1f`,
             color: selected ? '#fff' : accent,
           }}
         >
@@ -84,7 +84,7 @@ export function BlobIllustration({
   icon: Icon = FileCheck2,
   badge: Badge = Check,
   blob = 'var(--primary-light)',
-  badgeColor = 'var(--warning-strong)',
+  badgeColor = 'var(--accent)',
 }) {
   const s = size
   const line = (width) => (
@@ -105,11 +105,11 @@ export function BlobIllustration({
       />
       <span
         className="blob-dot"
-        style={{ right: s * 0.02, top: s * 0.04, width: s * 0.09, height: s * 0.09, background: 'var(--warning-strong)' }}
+        style={{ right: s * 0.02, top: s * 0.04, width: s * 0.09, height: s * 0.09, background: 'var(--accent)' }}
       />
       <span
         className="blob-dot"
-        style={{ left: 0, bottom: s * 0.18, width: s * 0.06, height: s * 0.06, background: 'rgba(30,136,214,.45)' }}
+        style={{ left: 0, bottom: s * 0.18, width: s * 0.06, height: s * 0.06, background: 'rgba(69,211,216,.6)' }}
       />
       <span
         className="blob-paper"

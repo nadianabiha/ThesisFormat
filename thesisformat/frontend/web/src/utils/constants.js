@@ -1,11 +1,11 @@
 // Disamakan dengan backend (Document.DocumentType) dan app mobile
 // (lib/models/document_type.dart + DocTypeStyle).
 export const DOCUMENT_TYPES = [
-  { id: 'praktik', label: 'Laporan Praktik', short: 'Praktik', color: '#1E88D6' },
-  { id: 'pkl', label: 'Laporan PKL/Magang', short: 'PKL/Magang', color: '#F59E1B' },
+  { id: 'praktik', label: 'Laporan Praktik', short: 'Praktik', color: '#0B3B5B' },
+  { id: 'pkl', label: 'Laporan PKL/Magang', short: 'PKL/Magang', color: '#E0A800' },
   { id: 'tugas_akhir', label: 'Laporan Tugas Akhir/Skripsi', short: 'Tugas Akhir', color: '#7C6CF2' },
   { id: 'proposal_pengabdian', label: 'Proposal Pengabdian Masyarakat', short: 'Pengabdian', color: '#1FA874' },
-  { id: 'proposal_penelitian', label: 'Proposal Penelitian', short: 'Penelitian', color: '#0F9F8F' },
+  { id: 'proposal_penelitian', label: 'Proposal Penelitian', short: 'Penelitian', color: '#1FA9B0' },
   { id: 'makalah_ilmiah', label: 'Makalah Ilmiah', short: 'Makalah', color: '#DB2777' },
 ]
 
@@ -46,13 +46,13 @@ export function scoreLabel(score) {
 }
 
 export const COLORS = {
-  primary: '#1E88D6',
-  primarySoft: '#CDEBFC',
-  accent: '#F59E1B',
+  primary: '#0B3B5B',
+  primarySoft: '#9FE7EA',
+  accent: '#F5BC00',
   success: '#1FA874',
   error: '#E5484D',
-  info: '#7C6CF2',
-  muted: '#9DABBA',
-  grid: '#EDF3F8',
-  text: '#66778A',
+  info: '#2BBFC5',
+  muted: '#9AAEBB',
+  grid: '#EAF4F5',
+  text: '#5D7385',
 }

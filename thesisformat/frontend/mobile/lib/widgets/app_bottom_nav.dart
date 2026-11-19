@@ -35,16 +35,16 @@ class AppBottomNav extends StatelessWidget {
               height: 64,
               padding: const EdgeInsets.symmetric(horizontal: 8),
               decoration: BoxDecoration(
-                color: c.card,
+                color: c.navSurface,
                 borderRadius: BorderRadius.circular(24),
                 border: c.isDark ? Border.all(color: c.border) : null,
                 boxShadow: c.isDark
                     ? null
                     : [
                         BoxShadow(
-                          color: c.primaryDark.withValues(alpha: .10),
+                          color: c.primaryDark.withValues(alpha: .28),
                           blurRadius: 24,
-                          offset: const Offset(0, 8),
+                          offset: const Offset(0, 10),
                         ),
                       ],
               ),
@@ -92,8 +92,8 @@ class AppSideNav extends StatelessWidget {
     return Container(
       width: extended ? 232 : 92,
       decoration: BoxDecoration(
-        color: c.card,
-        border: Border(right: BorderSide(color: c.divider)),
+        color: c.navSurface,
+        border: c.isDark ? Border(right: BorderSide(color: c.divider)) : null,
       ),
       child: SafeArea(
         right: false,
@@ -112,12 +112,12 @@ class AppSideNav extends StatelessWidget {
                     width: 40,
                     height: 40,
                     decoration: BoxDecoration(
-                      color: c.primarySoft,
+                      color: c.navSelected,
                       borderRadius: BorderRadius.circular(13),
                     ),
                     child: Icon(
                       Icons.auto_stories_rounded,
-                      color: c.primaryDark,
+                      color: c.navOnSelected,
                       size: 22,
                     ),
                   ),
@@ -128,7 +128,7 @@ class AppSideNav extends StatelessWidget {
                         'ThesisFormat',
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
-                          color: c.textPrimary,
+                          color: c.navOnSurface,
                           fontWeight: FontWeight.w800,
                           fontSize: 16,
                         ),
@@ -186,7 +186,7 @@ class _SideNavItem extends StatelessWidget {
     final iconWidget = Icon(
       selected ? selectedIcon : icon,
       size: 22,
-      color: selected ? c.primaryDark : c.navUnselected,
+      color: selected ? c.navOnSelected : c.navUnselected,
     );
     final text = Text(
       label,
@@ -195,7 +195,7 @@ class _SideNavItem extends StatelessWidget {
       style: TextStyle(
         fontSize: extended ? 14 : 11,
         fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
-        color: selected ? c.primaryExtraDark : c.textSecondary,
+        color: selected ? c.navOnSelected : c.navUnselected,
       ),
     );
 
@@ -203,7 +203,7 @@ class _SideNavItem extends StatelessWidget {
       selected: selected,
       button: true,
       child: Material(
-        color: selected ? c.primarySoft : Colors.transparent,
+        color: selected ? c.navSelected : Colors.transparent,
         borderRadius: BorderRadius.circular(16),
         child: InkWell(
           borderRadius: BorderRadius.circular(16),
@@ -262,7 +262,7 @@ class _NavItem extends StatelessWidget {
             curve: Curves.easeOut,
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
             decoration: BoxDecoration(
-              color: selected ? c.primarySoft : Colors.transparent,
+              color: selected ? c.navSelected : Colors.transparent,
               borderRadius: BorderRadius.circular(18),
             ),
             child: Row(
@@ -271,7 +271,7 @@ class _NavItem extends StatelessWidget {
                 Icon(
                   selected ? selectedIcon : icon,
                   size: 22,
-                  color: selected ? c.primaryDark : c.navUnselected,
+                  color: selected ? c.navOnSelected : c.navUnselected,
                 ),
                 const SizedBox(width: 6),
                 Flexible(
@@ -282,7 +282,7 @@ class _NavItem extends StatelessWidget {
                     style: TextStyle(
                       fontSize: 12,
                       fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
-                      color: selected ? c.primaryExtraDark : c.navUnselected,
+                      color: selected ? c.navOnSelected : c.navUnselected,
                     ),
                   ),
                 ),

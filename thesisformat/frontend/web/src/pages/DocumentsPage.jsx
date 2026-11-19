@@ -279,7 +279,7 @@ export default function DocumentsPage() {
         ) : (
           <div style={{ opacity: loading ? 0.6 : 1, transition: 'opacity .15s' }}>
             {/* Tablet & desktop: tabel */}
-            <div className="table-wrap">
+            <div className="table-wrap has-cards">
               <table className="table">
                 <thead>
                   <tr>

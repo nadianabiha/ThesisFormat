@@ -1,8 +1,13 @@
+import 'package:flutter/cupertino.dart' show CupertinoPageTransitionsBuilder;
 import 'package:flutter/material.dart';
 
-/// Palet warna aplikasi.
-/// Gaya: biru langit yang lembut dengan aksen oranye, kartu putih
-/// tanpa garis tepi, dan sudut membulat.
+import 'app_backdrop.dart';
+
+/// Palet warna aplikasi (Tosca–Navy–Kuning, sama dengan dashboard web).
+/// - primary      = tosca (blok warna, menu aktif)
+/// - primaryDark  = navy (tombol, ikon, teks penting)
+/// - warning      = kuning (aksen)
+/// Kartu putih transparan di atas latar gradasi (lihat app_backdrop.dart).
 @immutable
 class AppPalette extends ThemeExtension<AppPalette> {
   const AppPalette({
@@ -45,7 +50,13 @@ class AppPalette extends ThemeExtension<AppPalette> {
 
   bool get isDark => background.computeLuminance() < 0.1;
 
-  /// Aksen oranye (dipakai juga untuk status "warning").
+  /// Menu navigasi (bawah/samping): navy dengan pil tosca untuk menu aktif.
+  Color get navSurface => isDark ? card : primaryDark;
+  Color get navOnSurface => isDark ? textPrimary : Colors.white;
+  Color get navSelected => primary;
+  Color get navOnSelected => const Color(0xFF0B3B5B);
+
+  /// Aksen kuning (dipakai juga untuk status "warning").
   Color get accent => warning;
   Color get accentSoft => warningBackground;
 
@@ -62,61 +73,62 @@ class AppPalette extends ThemeExtension<AppPalette> {
   );
 
   static const light = AppPalette(
-    primary: Color(0xFF5CC6F7),
-    primaryDark: Color(0xFF1E88D6),
-    primaryExtraDark: Color(0xFF136DAE),
-    primaryLight: Color(0xFFCDEBFC),
-    primarySoft: Color(0xFFE8F5FE),
-    background: Color(0xFFF4F9FD),
+    primary: Color(0xFF45D3D8),
+    primaryDark: Color(0xFF0B3B5B),
+    primaryExtraDark: Color(0xFF072A42),
+    primaryLight: Color(0xFFBDEFF1),
+    primarySoft: Color(0xFFE3F8F9),
+    background: Color(0xFFE4F5F6),
     surface: Color(0xFFFFFFFF),
-    surfaceSecondary: Color(0xFFEEF5FB),
-    card: Color(0xFFFFFFFF),
-    border: Color(0xFFE1ECF5),
-    divider: Color(0xFFEDF3F8),
-    textPrimary: Color(0xFF1B2A3A),
-    textSecondary: Color(0xFF66778A),
-    textMuted: Color(0xFF9DABBA),
-    navUnselected: Color(0xFF9DABBA),
+    surfaceSecondary: Color(0xFFECF7F8),
+    // Putih transparan (efek kaca) agar latar gradasi terlihat samar.
+    card: Color(0xC7FFFFFF),
+    border: Color(0xFFDCECEE),
+    divider: Color(0xFFEAF4F5),
+    textPrimary: Color(0xFF102F45),
+    textSecondary: Color(0xFF5D7385),
+    textMuted: Color(0xFF8296A5),
+    navUnselected: Color(0xB3FFFFFF),
     onPrimary: Color(0xFFFFFFFF),
     success: Color(0xFF1FA874),
     successBackground: Color(0xFFE3F6EE),
-    warning: Color(0xFFF59E1B),
-    warningBackground: Color(0xFFFFF1DA),
+    warning: Color(0xFFF2B200),
+    warningBackground: Color(0xFFFFF4CC),
     error: Color(0xFFE5484D),
     errorBackground: Color(0xFFFDECEC),
-    info: Color(0xFF7C6CF2),
-    infoBackground: Color(0xFFEFEDFE),
-    heroStart: Color(0xFF2F9BE0),
-    heroEnd: Color(0xFF1766B0),
+    info: Color(0xFF1FA9B0),
+    infoBackground: Color(0xFFE3F8F9),
+    heroStart: Color(0xFF0B3B5B),
+    heroEnd: Color(0xFF12608A),
   );
 
   static const dark = AppPalette(
-    primary: Color(0xFF5CC6F7),
-    primaryDark: Color(0xFF4AB3F0),
-    primaryExtraDark: Color(0xFF8AD3FA),
-    primaryLight: Color(0xFF1A3A52),
-    primarySoft: Color(0xFF142D42),
-    background: Color(0xFF0E1620),
-    surface: Color(0xFF16212D),
-    surfaceSecondary: Color(0xFF1C2937),
-    card: Color(0xFF17222F),
-    border: Color(0xFF263545),
-    divider: Color(0xFF223040),
+    primary: Color(0xFF45D3D8),
+    primaryDark: Color(0xFF5FDDE1),
+    primaryExtraDark: Color(0xFF9BEBEE),
+    primaryLight: Color(0xFF15414A),
+    primarySoft: Color(0xFF12323B),
+    background: Color(0xFF0B1820),
+    surface: Color(0xFF14232D),
+    surfaceSecondary: Color(0xFF1A2C37),
+    card: Color(0xD914232D),
+    border: Color(0xFF243945),
+    divider: Color(0xFF1F323D),
     textPrimary: Color(0xFFF1F5F9),
-    textSecondary: Color(0xFFA9B6C4),
-    textMuted: Color(0xFF7D8B9A),
-    navUnselected: Color(0xFF7D8B9A),
-    onPrimary: Color(0xFF0B1620),
+    textSecondary: Color(0xFFA9B9C4),
+    textMuted: Color(0xFF7D8F9A),
+    navUnselected: Color(0xFF7D8F9A),
+    onPrimary: Color(0xFF0B1820),
     success: Color(0xFF4ADE9B),
     successBackground: Color(0xFF123A2A),
-    warning: Color(0xFFFBB54A),
-    warningBackground: Color(0xFF3A2C12),
+    warning: Color(0xFFFCC935),
+    warningBackground: Color(0xFF3A3012),
     error: Color(0xFFF87171),
     errorBackground: Color(0xFF3B1D1D),
-    info: Color(0xFFA79BFA),
-    infoBackground: Color(0xFF2A2550),
-    heroStart: Color(0xFF1F6FA8),
-    heroEnd: Color(0xFF14456E),
+    info: Color(0xFF5FDDE1),
+    infoBackground: Color(0xFF12323B),
+    heroStart: Color(0xFF0E4A6E),
+    heroEnd: Color(0xFF0B2F47),
   );
 
   @override
@@ -258,7 +270,30 @@ class AppTheme {
       brightness: brightness,
       colorScheme: scheme,
       extensions: <ThemeExtension<dynamic>>[palette],
-      scaffoldBackgroundColor: palette.background,
+      // Latar dilukis oleh AppBackdrop di setiap halaman.
+      scaffoldBackgroundColor: Colors.transparent,
+      pageTransitionsTheme: const PageTransitionsTheme(
+        builders: {
+          TargetPlatform.android: BackdropPageTransitionsBuilder(
+            ZoomPageTransitionsBuilder(),
+          ),
+          TargetPlatform.fuchsia: BackdropPageTransitionsBuilder(
+            ZoomPageTransitionsBuilder(),
+          ),
+          TargetPlatform.windows: BackdropPageTransitionsBuilder(
+            ZoomPageTransitionsBuilder(),
+          ),
+          TargetPlatform.linux: BackdropPageTransitionsBuilder(
+            ZoomPageTransitionsBuilder(),
+          ),
+          TargetPlatform.iOS: BackdropPageTransitionsBuilder(
+            CupertinoPageTransitionsBuilder(),
+          ),
+          TargetPlatform.macOS: BackdropPageTransitionsBuilder(
+            CupertinoPageTransitionsBuilder(),
+          ),
+        },
+      ),
       dividerColor: palette.divider,
       hintColor: palette.textMuted,
       iconTheme: IconThemeData(color: palette.textSecondary),
@@ -267,7 +302,7 @@ class AppTheme {
         displayColor: palette.textPrimary,
       ),
       appBarTheme: AppBarTheme(
-        backgroundColor: palette.background,
+        backgroundColor: Colors.transparent,
         foregroundColor: palette.textPrimary,
         surfaceTintColor: Colors.transparent,
         elevation: 0,

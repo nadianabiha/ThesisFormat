@@ -1,40 +1,46 @@
 /* =========================================================
    ThesisFormat Dashboard
    Warna & gaya disamakan dengan app mobile (lib/theme/app_theme.dart):
-   biru langit + aksen oranye, kartu putih, sudut membulat.
+   tosca + navy + aksen kuning, kartu putih, sudut membulat.
    ========================================================= */
 
 :root {
-  --primary: #1e88d6;
-  --primary-dark: #136dae;
-  --primary-light: #cdebfc;
-  --primary-soft: #e8f5fe;
-  --hero-start: #2f9be0;
-  --hero-end: #1766b0;
+  /* Palet Tosca–Navy–Kuning (referensi PaletteMaker) */
+  --primary: #0b3b5b;        /* navy: tombol, tautan, teks penting */
+  --primary-dark: #072a42;
+  --primary-light: #bdeff1;  /* tosca muda */
+  --primary-soft: #e3f8f9;   /* tosca sangat muda */
+  --tosca: #45d3d8;
+  --hero-start: #4fd8dc;     /* banner: tosca dengan teks navy */
+  --hero-end: #34c5cc;
+  --on-hero: #0b3b5b;
+  --accent: #fcc935;         /* kuning: aksen & tombol penting */
+  --accent-dark: #ecb612;
+  --on-accent: #0b3b5b;
 
-  --bg: #f4f9fd;
+  --bg: #eef8f9;
   --card: #ffffff;
-  --surface-2: #eef5fb;
-  --border: #e1ecf5;
-  --divider: #edf3f8;
+  --surface-2: #ecf7f8;
+  --border: #dcecee;
+  --divider: #eaf4f5;
 
-  --text: #1b2a3a;
-  --text-2: #66778a;
-  --text-muted: #8494a6;
+  --text: #102f45;
+  --text-2: #5d7385;
+  --text-muted: #8296a5;
 
   --success: #1fa874;
   --success-bg: #e3f6ee;
-  --warning: #c47a06;
-  --warning-strong: #f59e1b;
-  --warning-bg: #fff1da;
+  --warning: #a67c00;
+  --warning-strong: #f5bc00;
+  --warning-bg: #fff6d6;
   --error: #d93a3f;
   --error-bg: #fdecec;
-  --info: #6a5ae0;
-  --info-bg: #efedfe;
+  --info: #1fa9b0;
+  --info-bg: #e3f8f9;
 
   --radius: 20px;
   --radius-sm: 14px;
-  --shadow: 0 8px 22px rgba(30, 136, 214, 0.07);
+  --shadow: 0 8px 22px rgba(11, 59, 91, 0.07);
   --sidebar-w: 248px;
 
   color-scheme: light;
@@ -52,10 +58,10 @@
 
 body {
   margin: 0;
-  /* Latar biru lembut dengan cahaya gradasi, seperti referensi desain app. */
+  /* Latar tosca lembut dengan cahaya gradasi, seperti referensi desain app. */
   background:
-    radial-gradient(circle at 100% 0%, #dff0fd 0, rgba(223, 240, 253, 0) 38%),
-    radial-gradient(circle at 0% 100%, #fff4e3 0, rgba(255, 244, 227, 0) 32%),
+    radial-gradient(circle at 100% 0%, #c9f1f3 0, rgba(201, 241, 243, 0) 45%),
+    radial-gradient(circle at 0% 100%, #ffeeb0 0, rgba(255, 238, 176, 0) 34%),
     var(--bg);
   background-attachment: fixed;
   font-size: 14px;
@@ -223,7 +229,21 @@ h3 {
   flex-direction: column;
 }
 
+/* Bilah atas: di desktop hanya berisi menu profil di kanan. */
 .topbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 16px 32px 0;
+}
+
+/* Tombol menu (☰) & judul hanya untuk HP/tablet. Selector dibuat lebih
+   spesifik agar tidak tertimpa aturan .icon-btn yang ditulis belakangan. */
+.topbar .topbar-menu,
+.topbar .topbar-title {
   display: none;
 }
 
@@ -231,7 +251,126 @@ h3 {
   width: 100%;
   max-width: 1280px;
   margin: 0 auto;
-  padding: 28px 32px 40px;
+  padding: 16px 32px 40px;
+}
+
+/* Tempat tombol "Kembali" di kiri bilah atas. */
+.topbar-slot {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+
+.topbar-slot:empty {
+  display: none;
+}
+
+/* ---------- Menu profil (kanan atas) ---------- */
+
+.user-menu {
+  position: relative;
+  margin-left: auto;
+}
+
+.user-menu-button {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 5px 12px 5px 5px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--card);
+  box-shadow: var(--shadow);
+  cursor: pointer;
+  text-align: left;
+}
+
+.user-menu-button:hover {
+  border-color: var(--primary-light);
+}
+
+.user-menu-text {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.2;
+  min-width: 0;
+}
+
+.user-menu-text .name {
+  font-weight: 700;
+  font-size: 13px;
+  max-width: 160px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.user-menu-text .role {
+  font-size: 11px;
+  color: var(--text-2);
+}
+
+.user-menu .chevron {
+  color: var(--text-muted);
+  transition: transform 0.15s;
+}
+
+.user-menu .chevron.open {
+  transform: rotate(180deg);
+}
+
+.user-menu-panel {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 8px);
+  min-width: 220px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  box-shadow: 0 14px 34px rgba(15, 30, 45, 0.14);
+  padding: 6px;
+  z-index: 40;
+}
+
+.user-menu-info {
+  display: flex;
+  flex-direction: column;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--divider);
+  margin-bottom: 6px;
+  font-size: 13px;
+}
+
+.user-menu-info span {
+  color: var(--text-2);
+  font-size: 12px;
+  word-break: break-all;
+}
+
+.user-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 12px;
+  border: none;
+  border-radius: 10px;
+  background: transparent;
+  font-weight: 600;
+  cursor: pointer;
+  text-align: left;
+}
+
+.user-menu-item:hover {
+  background: var(--surface-2);
+}
+
+.user-menu-item.danger {
+  color: var(--error);
+}
+
+.user-menu-item.danger:hover {
+  background: var(--error-bg);
 }
 
 .page-header {
@@ -289,7 +428,7 @@ h3 {
 
 .hero-card {
   background: linear-gradient(135deg, var(--hero-start), var(--hero-end));
-  color: #fff;
+  color: var(--on-hero);
   border-radius: 24px;
   padding: 22px;
 }
@@ -453,7 +592,7 @@ h3 {
 
 .alert-warning {
   background: var(--warning-bg);
-  color: #8a5a00;
+  color: #7a5c00;
 }
 
 .alert-success {
@@ -486,7 +625,7 @@ h3 {
 
 .tone-warning {
   background: var(--warning-bg);
-  color: #8a5a00;
+  color: #7a5c00;
 }
 
 .tone-error {
@@ -535,7 +674,7 @@ h3 {
 
 a.stat-card:hover {
   text-decoration: none;
-  box-shadow: 0 10px 26px rgba(30, 136, 214, 0.14);
+  box-shadow: 0 10px 26px rgba(11, 59, 91, 0.14);
 }
 
 .stat-top {
@@ -809,7 +948,7 @@ a.stat-card:hover .stat-cta {
 }
 
 .hero-card a {
-  color: #fff;
+  color: var(--on-hero);
   font-weight: 700;
 }
 
@@ -1015,7 +1154,7 @@ a.stat-card:hover .stat-cta {
   margin: 20px;
   border-radius: 32px;
   background: linear-gradient(135deg, var(--hero-start), var(--hero-end));
-  color: #fff;
+  color: var(--on-hero);
   padding: 48px;
   display: flex;
   flex-direction: column;
@@ -1188,9 +1327,9 @@ a.stat-card:hover .stat-cta {
   padding: 26px 28px;
   border-radius: 28px;
   margin-bottom: 22px;
-  color: #fff;
+  color: var(--on-hero);
   background: linear-gradient(135deg, var(--hero-start), var(--hero-end));
-  box-shadow: 0 14px 30px rgba(23, 102, 176, 0.22);
+  box-shadow: 0 14px 30px rgba(11, 59, 91, 0.22);
 }
 
 .hero-banner::after {
@@ -1240,32 +1379,32 @@ a.stat-card:hover .stat-cta {
 }
 
 .btn-white {
-  background: #fff;
-  color: var(--hero-end);
+  background: var(--primary);
+  color: #fff;
 }
 
 .btn-white:hover:not(:disabled) {
-  background: #eaf5fe;
-  color: var(--hero-end);
+  background: var(--primary-dark);
+  color: #fff;
 }
 
 .btn-outline-white {
-  background: rgba(255, 255, 255, 0.14);
-  color: #fff;
-  border: 1px solid rgba(255, 255, 255, 0.45);
+  background: rgba(255, 255, 255, 0.35);
+  color: var(--on-hero);
+  border: 1px solid rgba(11, 59, 91, 0.35);
 }
 
 .btn-outline-white:hover:not(:disabled) {
-  background: rgba(255, 255, 255, 0.24);
+  background: rgba(255, 255, 255, 0.55);
 }
 
 .btn-accent {
-  background: var(--warning-strong);
-  color: #fff;
+  background: var(--accent);
+  color: var(--on-accent);
 }
 
 .btn-accent:hover:not(:disabled) {
-  background: #e08a08;
+  background: var(--accent-dark);
 }
 
 /* Kotak jenis dokumen (seperti kartu kategori di app) */
@@ -1359,7 +1498,7 @@ a.stat-card:hover .stat-cta {
 .stat-icon.solid {
   color: #fff;
   border-radius: 50%;
-  box-shadow: 0 6px 14px var(--stat-shadow, rgba(30, 136, 214, 0.25));
+  box-shadow: 0 6px 14px var(--stat-shadow, rgba(11, 59, 91, 0.25));
 }
 
 /* Kartu promosi di sidebar */
@@ -1367,7 +1506,7 @@ a.stat-card:hover .stat-cta {
   margin: 18px 4px 16px;
   padding: 16px;
   border-radius: 20px;
-  background: linear-gradient(160deg, var(--primary-soft), #fff4e3);
+  background: linear-gradient(160deg, var(--primary-soft), #fff6d6);
   text-align: center;
   display: flex;
   flex-direction: column;
@@ -1390,7 +1529,7 @@ a.stat-card:hover .stat-cta {
 .hero-card {
   position: relative;
   overflow: hidden;
-  box-shadow: 0 14px 30px rgba(23, 102, 176, 0.2);
+  box-shadow: 0 14px 30px rgba(11, 59, 91, 0.2);
 }
 
 .hero-card .hero-illus {
@@ -1440,7 +1579,7 @@ a.stat-card:hover .stat-cta {
   place-items: center;
   flex-shrink: 0;
   font-weight: 800;
-  color: #fff;
+  color: var(--on-hero);
   background: linear-gradient(135deg, var(--hero-start), var(--hero-end));
 }
 
@@ -1504,6 +1643,71 @@ a.stat-card:hover .stat-cta {
   border-bottom: none;
 }
 
+/* Daftar analisis AI terbaru */
+.run-list {
+  display: flex;
+  flex-direction: column;
+  max-height: 340px;
+  overflow-y: auto;
+  border: 1px solid var(--divider);
+  border-radius: var(--radius-sm);
+}
+
+.run-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--divider);
+  color: inherit;
+}
+
+.run-row:last-child {
+  border-bottom: none;
+}
+
+.run-row:hover {
+  text-decoration: none;
+  background: var(--primary-soft);
+}
+
+.run-icon {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+}
+
+.run-icon.ok {
+  background: var(--success-bg);
+  color: var(--success);
+}
+
+.run-icon.fail {
+  background: var(--error-bg);
+  color: var(--error);
+}
+
+.run-main {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+}
+
+.run-main .cell-title {
+  max-width: 100%;
+}
+
+.run-row .badge {
+  flex-shrink: 0;
+  max-width: 45%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .feedback-item {
   display: flex;
   flex-direction: column;
@@ -1537,13 +1741,27 @@ a.stat-card:hover .stat-cta {
 }
 
 .rule-card.highlight {
-  box-shadow: 0 0 0 3px var(--warning-strong), var(--shadow);
+  box-shadow: 0 0 0 3px var(--accent), var(--shadow);
 }
 
 .margin-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 8px;
+  align-items: end;
+}
+
+.margin-field span {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text-2);
+  white-space: nowrap;
+}
+
+.margin-field .input {
+  text-align: center;
+  padding-left: 8px;
+  padding-right: 8px;
 }
 
 .switch {
@@ -1617,9 +1835,20 @@ a.stat-card:hover .stat-cta {
   color: var(--text);
   font-weight: 600;
   font-size: 13px;
+  white-space: nowrap;
   cursor: pointer;
   box-shadow: var(--shadow);
   transition: background 0.15s, border-color 0.15s;
+}
+
+/* Di bilah atas: tinggi sama dengan tombol profil admin agar sejajar. */
+.topbar .back-btn {
+  min-height: 50px;
+  padding: 0 20px 0 16px;
+}
+
+.back-btn-target {
+  margin-left: -2px;
 }
 
 .back-btn:hover {
@@ -1702,16 +1931,38 @@ a.stat-card:hover .stat-cta {
   }
 
   .topbar {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    padding: 12px 16px;
+    max-width: none;
+    padding: 10px 16px;
     background: var(--card);
     border-bottom: 1px solid var(--divider);
     position: sticky;
     top: 0;
     z-index: 10;
     font-weight: 800;
+  }
+
+  .topbar .topbar-menu {
+    display: grid;
+  }
+
+  .topbar .topbar-title {
+    display: inline;
+    white-space: nowrap;
+  }
+
+  .user-menu-button {
+    box-shadow: none;
+  }
+
+  /* Ada tombol Kembali: judul disembunyikan agar bilah atas tidak sesak. */
+  .topbar:has(.topbar-slot:not(:empty)) .topbar-title {
+    display: none;
+  }
+
+  .topbar .back-btn {
+    box-shadow: none;
+    min-height: 44px;
+    padding: 0 14px 0 12px;
   }
 
   .content {
@@ -1770,7 +2021,9 @@ a.stat-card:hover .stat-cta {
     grid-template-columns: minmax(0, 1fr);
   }
 
-  .table-wrap {
+  /* Tabel yang punya versi kartu (Dokumen, Mahasiswa) diganti kartu.
+     Tabel lain (mis. Kinerja AI) tetap tampil dan bisa digeser ke samping. */
+  .table-wrap.has-cards {
     display: none;
   }
 
@@ -1802,8 +2055,180 @@ a.stat-card:hover .stat-cta {
   }
 }
 
+/* HP kecil: menu profil cukup avatar saja, tombol cukup "Kembali". */
+@media (max-width: 480px) {
+  .back-btn-target {
+    display: none;
+  }
+
+  .user-menu-text,
+  .user-menu .chevron {
+    display: none;
+  }
+
+  .user-menu-button {
+    padding: 3px;
+  }
+}
+
 @media (max-width: 380px) {
   .stat-grid {
     grid-template-columns: minmax(0, 1fr);
   }
+}
+
+
+/* =========================================================
+   Tema warna lebih hidup (Tosca–Navy–Kuning)
+   - Sidebar navy, menu aktif tosca.
+   - Pita tosca bermotif titik di bagian atas konten.
+   - Banner sambutan & kartu hero navy dengan hiasan tosca/kuning.
+   ========================================================= */
+
+.sidebar {
+  background: linear-gradient(180deg, #0b3b5b 0%, #072a42 100%);
+  border-right: none;
+  color: #fff;
+}
+
+.sidebar .brand small {
+  color: #8fe3e6;
+}
+
+.sidebar .brand-icon {
+  background: var(--tosca);
+  color: var(--primary);
+}
+
+.sidebar .nav a {
+  color: rgba(255, 255, 255, 0.72);
+}
+
+.sidebar .nav a:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+}
+
+.sidebar .nav a.active {
+  background: var(--tosca);
+  color: var(--primary);
+  box-shadow: 0 8px 18px rgba(69, 211, 216, 0.28);
+}
+
+.sidebar .nav a.active svg {
+  color: var(--primary);
+}
+
+.sidebar .side-promo {
+  color: var(--text);
+  background: linear-gradient(160deg, #e3f8f9, #fff3c4);
+}
+
+/* Latar konten: gradasi "mesh" tosca–navy–kuning yang memenuhi layar,
+   dengan motif titik yang memudar. Tetap diam saat halaman di-scroll. */
+.main {
+  position: relative;
+  isolation: isolate;
+}
+
+.main::before,
+.main::after {
+  content: '';
+  position: fixed;
+  z-index: -1;
+  top: 0;
+  bottom: 0;
+  left: var(--sidebar-w);
+  right: 0;
+  pointer-events: none;
+}
+
+.main::before {
+  background:
+    radial-gradient(ellipse 60% 55% at 8% 0%, rgba(69, 211, 216, 0.75) 0, rgba(69, 211, 216, 0) 70%),
+    radial-gradient(ellipse 45% 50% at 100% 12%, rgba(18, 96, 138, 0.35) 0, rgba(18, 96, 138, 0) 70%),
+    radial-gradient(ellipse 40% 40% at 78% 100%, rgba(252, 201, 53, 0.45) 0, rgba(252, 201, 53, 0) 70%),
+    radial-gradient(ellipse 45% 45% at 0% 95%, rgba(69, 211, 216, 0.45) 0, rgba(69, 211, 216, 0) 70%),
+    radial-gradient(ellipse 35% 30% at 55% 45%, rgba(143, 227, 230, 0.35) 0, rgba(143, 227, 230, 0) 70%),
+    #e4f5f6;
+}
+
+.main::after {
+  background: radial-gradient(rgba(11, 59, 91, 0.13) 1.4px, transparent 1.6px) 0 0 / 22px 22px;
+  -webkit-mask-image: linear-gradient(160deg, #000 0%, rgba(0, 0, 0, 0.35) 45%, transparent 75%);
+  mask-image: linear-gradient(160deg, #000 0%, rgba(0, 0, 0, 0.35) 45%, transparent 75%);
+}
+
+@media (max-width: 900px) {
+  .main::before,
+  .main::after {
+    left: 0;
+  }
+}
+
+/* Kotak transparan (efek kaca): latar tetap terlihat samar di belakangnya,
+   tapi cukup putih agar tabel & angka tetap mudah dibaca. */
+.card,
+.user-menu-button {
+  background: rgba(255, 255, 255, 0.72);
+  -webkit-backdrop-filter: blur(16px) saturate(150%);
+  backdrop-filter: blur(16px) saturate(150%);
+  border: 1px solid rgba(255, 255, 255, 0.75);
+  box-shadow: 0 10px 30px rgba(11, 59, 91, 0.08);
+}
+
+/* Banner sambutan & kartu hero: navy dengan teks putih */
+.hero-banner,
+.hero-card {
+  --hero-start: #0b3b5b;
+  --hero-end: #12608a;
+  --on-hero: #ffffff;
+  box-shadow: 0 18px 36px rgba(11, 59, 91, 0.28);
+}
+
+.hero-banner::before {
+  content: '';
+  position: absolute;
+  top: -90px;
+  right: 18%;
+  width: 190px;
+  height: 190px;
+  border-radius: 50%;
+  border: 28px solid var(--tosca);
+  opacity: 0.35;
+  pointer-events: none;
+}
+
+.hero-banner .eyebrow {
+  color: #8fe3e6;
+  opacity: 1;
+}
+
+.hero-banner .btn-white,
+.hero-card .btn-white {
+  background: var(--accent);
+  color: var(--primary);
+}
+
+.hero-banner .btn-white:hover:not(:disabled),
+.hero-card .btn-white:hover:not(:disabled) {
+  background: var(--accent-dark);
+  color: var(--primary);
+}
+
+.hero-banner .btn-outline-white,
+.hero-card .btn-outline-white {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+  border-color: rgba(255, 255, 255, 0.45);
+}
+
+.hero-banner .btn-outline-white:hover:not(:disabled),
+.hero-card .btn-outline-white:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+/* Kartu statistik: garis warna di atas */
+.stat-card {
+  border-top: 4px solid var(--stat-color, var(--tosca));
 }

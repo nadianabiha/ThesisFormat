@@ -446,7 +446,7 @@ class BlobIllustration extends StatelessWidget {
               decoration: BoxDecoration(
                 color: badgeColor ?? c.warning,
                 shape: BoxShape.circle,
-                border: Border.all(color: c.card, width: 3),
+                border: Border.all(color: c.surface, width: 3),
               ),
               child: Icon(badgeIcon, color: Colors.white, size: s * .11),
             ),

@@ -1,8 +1,9 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link, NavLink, Outlet, useLocation } from 'react-router-dom'
 import {
   BookOpenCheck,
   BrainCircuit,
+  ChevronDown,
   FileText,
   LayoutDashboard,
   LogOut,
@@ -22,6 +23,60 @@ const NAV_ITEMS = [
   { to: '/rules', label: 'Aturan AI', icon: SlidersHorizontal },
 ]
 
+/** Menu profil di pojok kanan atas: nama admin + tombol Keluar. */
+function UserMenu({ user, onLogout }) {
+  const [open, setOpen] = useState(false)
+  const ref = useRef(null)
+  const initial = (user?.name || '?').trim().charAt(0).toUpperCase()
+
+  // Tutup saat klik di luar menu atau menekan Esc.
+  useEffect(() => {
+    if (!open) return undefined
+    const onClick = (event) => {
+      if (ref.current && !ref.current.contains(event.target)) setOpen(false)
+    }
+    const onKey = (event) => event.key === 'Escape' && setOpen(false)
+    document.addEventListener('mousedown', onClick)
+    document.addEventListener('keydown', onKey)
+    return () => {
+      document.removeEventListener('mousedown', onClick)
+      document.removeEventListener('keydown', onKey)
+    }
+  }, [open])
+
+  return (
+    <div className="user-menu" ref={ref}>
+      <button
+        type="button"
+        className="user-menu-button"
+        aria-haspopup="menu"
+        aria-expanded={open}
+        onClick={() => setOpen((value) => !value)}
+      >
+        <span className="avatar">{initial}</span>
+        <span className="user-menu-text">
+          <span className="name">{user?.name}</span>
+          <span className="role">Admin</span>
+        </span>
+        <ChevronDown size={16} className={`chevron${open ? ' open' : ''}`} />
+      </button>
+
+      {open && (
+        <div className="user-menu-panel" role="menu">
+          <div className="user-menu-info">
+            <strong>{user?.name}</strong>
+            {user?.email && <span>{user.email}</span>}
+          </div>
+          <button type="button" role="menuitem" className="user-menu-item danger" onClick={onLogout}>
+            <LogOut size={16} />
+            Keluar
+          </button>
+        </div>
+      )}
+    </div>
+  )
+}
+
 export default function Layout() {
   const { user, logout } = useAuth()
   const [drawerOpen, setDrawerOpen] = useState(false)
@@ -29,8 +84,6 @@ export default function Layout() {
 
   // Tutup menu laci (HP/tablet) setiap pindah halaman.
   useEffect(() => setDrawerOpen(false), [location.pathname])
-
-  const initial = (user?.name || '?').trim().charAt(0).toUpperCase()
 
   return (
     <div className={`app-shell${drawerOpen ? ' drawer-open' : ''}`}>
@@ -62,35 +115,28 @@ export default function Layout() {
             Pantau AI
           </Link>
         </div>
-
-        <div className="sidebar-footer">
-          <div className="user-chip">
-            <div className="avatar">{initial}</div>
-            <div style={{ minWidth: 0 }}>
-              <div className="name">{user?.name}</div>
-              <div className="role">Admin</div>
-            </div>
-          </div>
-          <button type="button" className="btn btn-ghost btn-block" onClick={logout}>
-            <LogOut size={16} />
-            Keluar
-          </button>
-        </div>
       </aside>
 
       <div className="drawer-backdrop" onClick={() => setDrawerOpen(false)} />
 
       <div className="main">
         <header className="topbar">
+          {/* Tombol menu & judul hanya tampil di HP/tablet (lihat CSS). */}
           <button
             type="button"
-            className="icon-btn"
+            className="icon-btn topbar-menu"
             aria-label={drawerOpen ? 'Tutup menu' : 'Buka menu'}
             onClick={() => setDrawerOpen((open) => !open)}
           >
             {drawerOpen ? <X size={20} /> : <Menu size={20} />}
           </button>
-          ThesisFormat Admin
+          <span className="topbar-title">ThesisFormat Admin</span>
+
+          {/* Tempat tombol "Kembali" dari setiap halaman (lihat PageNav),
+              agar sejajar dengan menu profil. */}
+          <div id="topbar-slot" className="topbar-slot" />
+
+          <UserMenu user={user} onLogout={logout} />
         </header>
 
         <main className="content">

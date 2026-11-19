@@ -42,8 +42,8 @@ function ValueInput({ rule, value, onChange }) {
     return (
       <div className="margin-grid">
         {Object.entries(MARGIN_LABELS).map(([key, label]) => (
-          <label key={key} className="field small">
-            {label} (cm)
+          <label key={key} className="field margin-field">
+            <span>{label}</span>
             <input
               type="number"
               className="input"
@@ -153,7 +153,9 @@ function RuleCard({ rule, onSaved }) {
           </div>
         ) : (
           <div className="field">
-            <label htmlFor={`value-${rule.id}`}>Nilai yang benar</label>
+            <label htmlFor={`value-${rule.id}`}>
+              Nilai yang benar{rule.input?.type === 'margin' && ' (cm)'}
+            </label>
             <ValueInput rule={rule} value={draft} onChange={setDraft} />
           </div>
         )}
