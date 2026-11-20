@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../theme/app_theme.dart';
+import 'app_logo.dart';
 
 /// Bottom navigation melayang dengan indikator berbentuk pil.
 class AppBottomNav extends StatelessWidget {
@@ -15,7 +16,7 @@ class AppBottomNav extends StatelessWidget {
 
   static const _items = [
     (Icons.home_outlined, Icons.home_rounded, 'Home'),
-    (Icons.folder_outlined, Icons.folder_rounded, 'Documents'),
+    (Icons.history_rounded, Icons.history_rounded, 'History'),
     (Icons.person_outline_rounded, Icons.person_rounded, 'Profile'),
   ];
 
@@ -108,19 +109,7 @@ class AppSideNav extends StatelessWidget {
                     ? MainAxisAlignment.start
                     : MainAxisAlignment.center,
                 children: [
-                  Container(
-                    width: 40,
-                    height: 40,
-                    decoration: BoxDecoration(
-                      color: c.navSelected,
-                      borderRadius: BorderRadius.circular(13),
-                    ),
-                    child: Icon(
-                      Icons.auto_stories_rounded,
-                      color: c.navOnSelected,
-                      size: 22,
-                    ),
-                  ),
+                  const AppLogo(size: 42),
                   if (extended) ...[
                     const SizedBox(width: 10),
                     Flexible(

@@ -5,6 +5,7 @@ import '../theme/app_theme.dart';
 import '../widgets/auth_layout.dart';
 import '../widgets/responsive.dart';
 import '../widgets/ui_kit.dart';
+import 'edit_profile_screen.dart' show validateUsername;
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -14,7 +15,7 @@ class RegisterScreen extends StatefulWidget {
 
 class _RegisterScreenState extends State<RegisterScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _name = TextEditingController();
+  final _username = TextEditingController();
   final _email = TextEditingController();
   final _password = TextEditingController();
   final _confirm = TextEditingController();
@@ -24,7 +25,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   @override
   void dispose() {
-    _name.dispose();
+    _username.dispose();
     _email.dispose();
     _password.dispose();
     _confirm.dispose();
@@ -36,12 +37,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
     setState(() => _submitting = true);
     try {
       await const ApiService().register(
-        name: _name.text,
+        username: _username.text,
         email: _email.text,
         password: _password.text,
       );
       if (!mounted) return;
-      Navigator.of(context).pop(_email.text.trim());
+      // Isi otomatis kolom login dengan username yang baru dibuat.
+      Navigator.of(context).pop(_username.text.trim().toLowerCase());
     } on ApiException catch (error) {
       if (!mounted) return;
       ScaffoldMessenger.of(context)
@@ -105,19 +107,17 @@ class _RegisterScreenState extends State<RegisterScreen> {
               style: TextStyle(color: c.textSecondary),
             ),
             const SizedBox(height: 24),
-            const Text('Full name', style: label),
+            const Text('Username', style: label),
             const SizedBox(height: 7),
             TextFormField(
-              controller: _name,
-              textCapitalization: TextCapitalization.words,
+              controller: _username,
+              autocorrect: false,
               decoration: const InputDecoration(
-                hintText: 'Your name',
+                hintText: 'Choose a username',
                 prefixIcon: Icon(Icons.person_outline_rounded),
               ),
-              validator: (v) =>
-                  v == null || v.trim().isEmpty ? 'Name is required.' : null,
-            ),
-            const SizedBox(height: 14),
+              validator: validateUsername,
+            ),            const SizedBox(height: 14),
             const Text('Email', style: label),
             const SizedBox(height: 7),
             TextFormField(

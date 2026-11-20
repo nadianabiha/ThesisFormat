@@ -56,7 +56,9 @@ class DocumentCard extends StatelessWidget {
                         vertical: 4,
                       ),
                       decoration: BoxDecoration(
-                        color: completed
+                        color: document.isIncomplete
+                            ? c.warningBackground
+                            : completed
                             ? scoreBackground(context, score)
                             : c.surfaceSecondary,
                         borderRadius: BorderRadius.circular(20),
@@ -64,7 +66,9 @@ class DocumentCard extends StatelessWidget {
                       child: Text(
                         document.displayStatus,
                         style: TextStyle(
-                          color: completed
+                          color: document.isIncomplete
+                              ? c.warning
+                              : completed
                               ? scoreColor(context, score)
                               : c.textSecondary,
                           fontSize: 10.5,
@@ -98,7 +102,12 @@ class DocumentCard extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 10),
-          ScoreRing(score: score, size: 50, stroke: 5, caption: null),
+          ScoreRing(
+            score: document.isIncomplete ? null : score,
+            size: 50,
+            stroke: 5,
+            caption: null,
+          ),
         ],
       ),
     );

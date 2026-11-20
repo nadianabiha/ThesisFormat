@@ -1,6 +1,11 @@
 
 from django.urls import path
-from .views import DocumentUploadView, DocumentHistoryView, DocumentResultView
+from .views import (
+    DocumentHistoryView,
+    DocumentRecheckView,
+    DocumentResultView,
+    DocumentUploadView,
+)
 
 urlpatterns = [
     path(
@@ -12,6 +17,11 @@ urlpatterns = [
         "<int:pk>/result/",
         DocumentResultView.as_view(),
         name="document-result",
+    ),
+    path(
+        "<int:pk>/recheck/",
+        DocumentRecheckView.as_view(),
+        name="document-recheck",
     ),
     path(
         "history/",

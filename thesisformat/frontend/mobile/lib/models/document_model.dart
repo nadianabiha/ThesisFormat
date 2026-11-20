@@ -25,6 +25,23 @@ class DocumentModel {
   final int sizeBytes;
   final AuditResult? result;
 
+  DocumentModel copyWith({
+    String? documentType,
+    int? score,
+    int? findingsCount,
+    AuditResult? result,
+  }) => DocumentModel(
+    id: id,
+    fileName: fileName,
+    documentType: documentType ?? this.documentType,
+    uploadDate: uploadDate,
+    status: status,
+    score: score ?? this.score,
+    findingsCount: findingsCount ?? this.findingsCount,
+    sizeBytes: sizeBytes,
+    result: result ?? this.result,
+  );
+
   String get name => fileName;
 
   String get type => documentType;
@@ -35,7 +52,13 @@ class DocumentModel {
 
   int get findings => findingsCount;
 
+  /// Pemeriksaan isi (AI) gagal: nilai yang tersimpan hanya nilai format,
+  /// jadi dokumen belum punya nilai akhir.
+  bool get isIncomplete =>
+      status == 'completed' && result != null && !result!.hasSemanticScore;
+
   String get displayStatus {
+    if (isIncomplete) return 'Incomplete';
     if (status == 'completed') {
       if (score >= 90) return 'Excellent';
       if (score >= 75) return 'Good';

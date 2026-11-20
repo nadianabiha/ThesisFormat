@@ -318,7 +318,7 @@ export default function DocumentsPage() {
                         {formatDateTime(doc.uploaded_at)}
                       </td>
                       <td>
-                        <ScoreRing score={doc.score} size={44} stroke={5} />
+                        <ScoreRing score={doc.has_semantic_score ? doc.score : null} size={44} stroke={5} />
                       </td>
                       <td>{doc.has_result ? doc.failed_findings : '-'}</td>
                       <td>
@@ -347,7 +347,7 @@ export default function DocumentsPage() {
                       </div>
                       <TypeBadge type={doc.document_type} />
                     </div>
-                    <ScoreRing score={doc.score} size={46} stroke={5} />
+                    <ScoreRing score={doc.has_semantic_score ? doc.score : null} size={46} stroke={5} />
                   </div>
                   <div className="small muted">
                     {doc.student.name} · {formatDateTime(doc.uploaded_at)}

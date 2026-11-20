@@ -18,15 +18,16 @@ class ApiService {
     defaultValue: 'http://127.0.0.1:8000',
   );
 
+  /// Login dengan username ATAU email ([identifier]).
   Future<Map<String, dynamic>> login({
-    required String email,
+    required String identifier,
     required String password,
   }) async {
     final response = await http.post(
       Uri.parse('$baseUrl/api/token/'),
       headers: const {'Content-Type': 'application/json'},
       body: jsonEncode({
-        'username': email.trim().toLowerCase(),
+        'username': identifier.trim(),
         'password': password,
       }),
     );
@@ -62,7 +63,7 @@ class ApiService {
   }
 
   Future<Map<String, dynamic>> register({
-    required String name,
+    required String username,
     required String email,
     required String password,
   }) async {
@@ -70,7 +71,7 @@ class ApiService {
       Uri.parse('$baseUrl/api/users/register/'),
       headers: const {'Content-Type': 'application/json'},
       body: jsonEncode({
-        'name': name.trim(),
+        'username': username.trim().toLowerCase(),
         'email': email.trim().toLowerCase(),
         'password': password,
       }),
@@ -80,7 +81,7 @@ class ApiService {
 
     return {
       'id': (data['id'] ?? '').toString(),
-      'name': (data['name'] ?? name.trim()).toString(),
+      'username': (data['username'] ?? username.trim().toLowerCase()).toString(),
       'email': (data['email'] ?? email.trim().toLowerCase()).toString(),
     };
   }
@@ -184,6 +185,31 @@ class ApiService {
     return AuditResult.fromJson(_decodeResponse(response));
   }
 
+  /// Cek ulang dokumen yang sudah diunggah (tanpa unggah ulang).
+  /// [documentType] opsional untuk mengganti jenis dokumen. Hasil lama
+  /// di server ditimpa.
+  Future<AuditResult> recheckDocument(
+    int documentId, {
+    String? documentType,
+  }) async {
+    final response = await _sendAuthorized(
+      (authHeaders) => http
+          .post(
+            Uri.parse('$baseUrl/api/v1/documents/$documentId/recheck/'),
+            headers: {...authHeaders, 'Content-Type': 'application/json'},
+            body: jsonEncode({
+              'document_type': ?documentType,
+            }),
+          )
+          // Pemeriksaan AI bisa sampai sekitar 2,5 menit.
+          .timeout(const Duration(minutes: 4)),
+    );
+
+    final result = AuditResult.fromJson(_decodeResponse(response));
+    DocumentEvents.instance.documentsChanged();
+    return result;
+  }
+
   /// Mengambil riwayat dokumen dari Django.
   Future<List<DocumentModel>> getDocumentHistory() async {
     final token = AuthService.instance.accessToken;
@@ -242,6 +268,46 @@ class ApiService {
   Future<Map<String, dynamic>> getProfile() async {
     return AuthService.instance.currentUser?.toJson() ??
         <String, dynamic>{};
+  }
+
+  /// Simpan perubahan profil (username & email) ke backend,
+  /// lalu perbarui data pengguna yang sedang login.
+  Future<UserModel> updateProfile({
+    required String username,
+    required String email,
+  }) async {
+    final response = await _sendAuthorized(
+      (authHeaders) => http.patch(
+        Uri.parse('$baseUrl/api/users/me/'),
+        headers: {...authHeaders, 'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'username': username.trim(),
+          'email': email.trim().toLowerCase(),
+        }),
+      ),
+    );
+
+    final user = UserModel.fromJson(_decodeResponse(response));
+    AuthService.instance.updateUser(user);
+    return user;
+  }
+
+  /// Ganti password akun yang sedang login.
+  Future<void> changePassword({
+    required String currentPassword,
+    required String newPassword,
+  }) async {
+    final response = await _sendAuthorized(
+      (authHeaders) => http.post(
+        Uri.parse('$baseUrl/api/users/me/password/'),
+        headers: {...authHeaders, 'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'current_password': currentPassword,
+          'new_password': newPassword,
+        }),
+      ),
+    );
+    _decodeResponse(response);
   }
 
   // ---------------------------------------------------------------

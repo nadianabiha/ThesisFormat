@@ -5,6 +5,9 @@ import '../services/theme_controller.dart';
 import '../theme/app_theme.dart';
 import '../widgets/responsive.dart';
 import '../widgets/ui_kit.dart';
+import 'change_password_screen.dart';
+import 'edit_profile_screen.dart';
+import '../widgets/app_logo.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key, this.embedded = false, this.onLogout});
@@ -14,13 +17,19 @@ class ProfileScreen extends StatelessWidget {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) => ListenableBuilder(
+    listenable: AuthService.instance,
+    builder: (context, _) => _build(context),
+  );
+
+  Widget _build(BuildContext context) {
     final c = context.appColors;
     final user = AuthService.instance.currentUser;
     final isDarkMode = ThemeController.instance.isDarkMode;
-    final initial = user == null || user.name.trim().isEmpty
+    final displayName = user?.displayName ?? '';
+    final initial = displayName.isEmpty
         ? '?'
-        : user.name.trim().substring(0, 1).toUpperCase();
+        : displayName.substring(0, 1).toUpperCase();
 
     // Kartu profil (nama, email).
     final headerCard = SoftCard(
@@ -56,7 +65,7 @@ class ProfileScreen extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  user?.name ?? '',
+                  displayName,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
@@ -140,9 +149,10 @@ class ProfileScreen extends StatelessWidget {
               icon: Icons.edit_outlined,
               color: c.primaryDark,
               label: 'Edit Profile',
-              onTap: () => _info(
-                context,
-                'Profile editing will be available when accounts are connected.',
+              onTap: () => Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) => const EditProfileScreen(),
+                ),
               ),
             ),
             _divider(c),
@@ -150,9 +160,10 @@ class ProfileScreen extends StatelessWidget {
               icon: Icons.lock_outline_rounded,
               color: c.info,
               label: 'Change Password',
-              onTap: () => _info(
-                context,
-                'Password changes will be available when accounts are connected.',
+              onTap: () => Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) => const ChangePasswordScreen(),
+                ),
               ),
             ),
             _divider(c),
@@ -164,6 +175,7 @@ class ProfileScreen extends StatelessWidget {
                 context: context,
                 applicationName: 'ThesisFormat',
                 applicationVersion: '1.0.0',
+                applicationIcon: const AppLogo(size: 52),
                 applicationLegalese: 'Academic writing assistant.',
               ),
             ),
@@ -175,13 +187,13 @@ class ProfileScreen extends StatelessWidget {
     // Tombol keluar & versi aplikasi.
     final footer = <Widget>[
       OutlinedButton.icon(
-        onPressed: onLogout ?? () => _info(context, 'You have signed out.'),
+        onPressed: onLogout ?? () => _info(context, 'You have logged out.'),
         icon: const Icon(Icons.logout_rounded),
         style: OutlinedButton.styleFrom(
           foregroundColor: c.error,
           side: BorderSide(color: c.error),
         ),
-        label: const Text('Sign out'),
+        label: const Text('Logout'),
       ),
       const SizedBox(height: 18),
       Center(

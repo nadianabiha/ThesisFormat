@@ -333,6 +333,7 @@ export default function AIPerformancePage() {
                     <span className="small muted">
                       {formatDateTime(run.created_at)}
                       {run.trigger === 'reanalyze' && ' · analisis ulang admin'}
+                      {run.trigger === 'recheck' && ' · cek ulang mahasiswa'}
                     </span>
                   </span>
                   <span className={`badge tone-${run.status === 'success' ? 'success' : 'error'}`}>

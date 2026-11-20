@@ -82,6 +82,8 @@ def check_document(document, trigger=AIRun.Trigger.UPLOAD, user=None):
             "recommendations": {
                 "has_format_score": result["has_format_score"],
                 "has_semantic_score": result["has_semantic_score"],
+                # True = dokumen lebih panjang dari batas, sebagian tidak dibaca AI.
+                "text_truncated": bool(jalur_b_result.get("text_truncated")),
             },
             "rejected_findings": [],
             "corrected_score": None,

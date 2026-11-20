@@ -111,7 +111,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
             children: [
               if (widget.embedded) ...[
                 Text(
-                  'Document History',
+                  'History',
                   style: TextStyle(
                     color: c.textPrimary,
                     fontSize: 24,
@@ -283,7 +283,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
     }
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Document History')),
+      appBar: AppBar(title: const Text('History')),
       body: MobileFrame(maxWidth: context.contentMaxWidth, child: content),
     );
   }

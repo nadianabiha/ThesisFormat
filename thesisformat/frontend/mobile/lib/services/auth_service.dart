@@ -29,6 +29,12 @@ class AuthService extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Perbarui data pengguna setelah profil diubah (token tetap sama).
+  void updateUser(UserModel user) {
+    _currentUser = user;
+    notifyListeners();
+  }
+
   /// Ganti access token yang kedaluwarsa dengan token baru dari
   /// /api/token/refresh/. Tidak memanggil notifyListeners karena
   /// data pengguna tidak berubah (layar tidak perlu dibangun ulang).

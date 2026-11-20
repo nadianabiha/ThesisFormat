@@ -62,6 +62,29 @@ PHYSICAL_LABELS = {
     "margin": "Margin halaman",
 }
 
+# Potongan nilai per temuan semantik sesuai tingkat kesalahannya.
+# Setiap aspek mulai dari 100, dikurangi potongan, minimal 0.
+SEVERITY_DEDUCTION = {
+    "ringan": 10,
+    "sedang": 25,
+    "berat": 50,
+}
+DEFAULT_SEVERITY = "sedang"
+
+SEVERITY_ALIASES = {
+    "minor": "ringan", "low": "ringan", "kecil": "ringan",
+    "medium": "sedang", "moderate": "sedang", "menengah": "sedang",
+    "major": "berat", "high": "berat", "critical": "berat", "fatal": "berat",
+}
+
+
+def normalize_severity(raw):
+    """Tingkat kesalahan baku: ringan / sedang / berat."""
+    key = str(raw or "").strip().lower()
+    key = SEVERITY_ALIASES.get(key, key)
+    return key if key in SEVERITY_DEDUCTION else DEFAULT_SEVERITY
+
+
 _TYPE_BY_STATUS = {
     "passed": "success",
     "failed": "error",
@@ -139,7 +162,7 @@ def normalize_semantic(findings):
     for f in findings or []:
         status = "passed" if f.get("status") == "passed" else "failed"
         category = normalize_category(f.get("category"))
-        items.append({
+        item = {
             "source": "semantic",
             "category": category,
             "status": status,
@@ -147,7 +170,10 @@ def normalize_semantic(findings):
             "title": SEMANTIC_CATEGORIES.get(category, "Isi & struktur"),
             "location": f.get("location") or "Lokasi tidak diketahui",
             "detail": f.get("issue", ""),
-        })
+        }
+        if status == "failed":
+            item["severity"] = normalize_severity(f.get("severity"))
+        items.append(item)
     return items
 
 
@@ -160,21 +186,25 @@ def physical_score(findings):
 
 def semantic_score(findings):
     """
-    Persentase aspek semantik yang lulus. Satu aspek (kategori) dianggap
-    gagal jika punya minimal satu temuan 'failed'.
+    Nilai isi (0–100) = rata-rata nilai setiap aspek semantik.
+    Setiap aspek mulai dari 100, lalu dikurangi sesuai tingkat setiap
+    temuan gagal: ringan -10, sedang -25, berat -50 (minimal 0).
+    Temuan lama tanpa tingkat dianggap "sedang".
     """
     by_category = {}
     for f in findings:
         category = f.get("category")
         if not category:
             continue
-        failed = f.get("status") == "failed"
-        by_category[category] = by_category.get(category, False) or failed
+        deduction = 0
+        if f.get("status") == "failed":
+            deduction = SEVERITY_DEDUCTION[normalize_severity(f.get("severity"))]
+        by_category[category] = by_category.get(category, 0) + deduction
 
     if not by_category:
         return None
-    passed = sum(1 for failed in by_category.values() if not failed)
-    return _pct(passed, len(by_category) - passed)
+    aspect_scores = [max(0, 100 - total) for total in by_category.values()]
+    return round(sum(aspect_scores) / len(aspect_scores))
 
 
 def scores_from_findings(findings):

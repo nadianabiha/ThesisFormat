@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 
 import '../models/document_model.dart';
-import '../models/document_type.dart';
 import '../services/api_service.dart';
 import '../services/auth_service.dart';
 import '../services/document_events.dart';
@@ -41,11 +40,8 @@ class _HomeScreenState extends State<HomeScreen> {
     return AnimatedBuilder(
       animation: AuthService.instance,
       builder: (context, _) {
-        final fullName = AuthService.instance.currentUser?.name.trim() ?? '';
-
-        final welcomeName = fullName.isEmpty
-            ? ''
-            : fullName.split(RegExp(r'\s+')).first;
+        final welcomeName =
+            AuthService.instance.currentUser?.displayName ?? '';
 
         final pages = [
           _Dashboard(
@@ -195,8 +191,6 @@ class _DashboardState extends State<_Dashboard> {
 
   @override
   Widget build(BuildContext context) {
-    final c = context.appColors;
-
     final greeting = _Greeting(
       name: widget.welcomeName,
       onProfile: widget.onProfile,
@@ -206,15 +200,6 @@ class _DashboardState extends State<_Dashboard> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         _HeroBanner(onStart: () => widget.onUpload()),
-        const SizedBox(height: 26),
-        const SectionHeader(title: 'Document Types'),
-        const SizedBox(height: 4),
-        Text(
-          'Pick a type to start a new review.',
-          style: TextStyle(color: c.textSecondary, fontSize: 12.5),
-        ),
-        const SizedBox(height: 12),
-        _TypeGrid(onSelect: widget.onUpload),
       ],
     );
 
@@ -381,24 +366,16 @@ class _Greeting extends StatelessWidget {
                 style: TextStyle(color: c.textSecondary, fontSize: 14),
               ),
               const SizedBox(height: 2),
-              Row(
-                children: [
-                  Flexible(
-                    child: Text(
-                      name.isEmpty ? 'Mahasiswa' : name,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        color: c.textPrimary,
-                        fontSize: 24,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: -.3,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 6),
-                  Icon(Icons.waving_hand_rounded, color: c.warning, size: 22),
-                ],
+              Text(
+                name.isEmpty ? 'Mahasiswa' : name,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: c.textPrimary,
+                  fontSize: 24,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: -.3,
+                ),
               ),
             ],
           ),
@@ -572,60 +549,6 @@ class _HeroBanner extends StatelessWidget {
   }
 }
 
-class _TypeGrid extends StatelessWidget {
-  const _TypeGrid({required this.onSelect});
-
-  final void Function([String? type]) onSelect;
-
-  @override
-  Widget build(BuildContext context) {
-    final c = context.appColors;
-
-    return LayoutBuilder(
-      builder: (context, constraints) => GridView.builder(
-        shrinkWrap: true,
-        physics: const NeverScrollableScrollPhysics(),
-        padding: EdgeInsets.zero,
-        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-          // 3 kolom jika ruang cukup (tablet/desktop), 2 kolom di HP.
-          crossAxisCount: constraints.maxWidth >= 520 ? 3 : 2,
-          mainAxisExtent: 64,
-          crossAxisSpacing: 10,
-          mainAxisSpacing: 10,
-        ),
-        itemCount: DocumentType.all.length,
-        itemBuilder: (context, index) {
-          final type = DocumentType.all[index];
-          return SoftCard(
-            radius: 18,
-            padding: const EdgeInsets.symmetric(horizontal: 10),
-            onTap: () => onSelect(type.id),
-            child: Row(
-              children: [
-                DocTypeIcon(type: type.id, size: 38),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Text(
-                    type.label,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: c.textPrimary,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      height: 1.25,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          );
-        },
-      ),
-    );
-  }
-}
-
 class _LatestReviewCard extends StatelessWidget {
   const _LatestReviewCard({required this.document, required this.onTap});
 
@@ -706,7 +629,9 @@ class _LatestReviewCard extends StatelessWidget {
                     Icon(Icons.flag_outlined, size: 13, color: c.warning),
                     const SizedBox(width: 4),
                     Text(
-                      '${document.findingsCount} items need attention',
+                      document.isIncomplete
+                          ? 'Content check incomplete'
+                          : '${document.findingsCount} items need attention',
                       style: TextStyle(color: c.textSecondary, fontSize: 11.5),
                     ),
                   ],
@@ -715,7 +640,11 @@ class _LatestReviewCard extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 14),
-          ScoreRing(score: score, size: 92, stroke: 9),
+          ScoreRing(
+            score: document.isIncomplete ? null : score,
+            size: 92,
+            stroke: 9,
+          ),
         ],
       ),
     );

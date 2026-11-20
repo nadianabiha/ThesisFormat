@@ -229,6 +229,9 @@ extension AppPaletteContext on BuildContext {
 }
 
 class AppTheme {
+  /// Font utama aplikasi (didaftarkan di pubspec.yaml).
+  static const fontFamily = 'Poppins';
+
   static ThemeData get lightTheme => _build(AppPalette.light, Brightness.light);
   static ThemeData get darkTheme => _build(AppPalette.dark, Brightness.dark);
   static ThemeData get light => lightTheme;
@@ -268,6 +271,7 @@ class AppTheme {
     return ThemeData(
       useMaterial3: true,
       brightness: brightness,
+      fontFamily: fontFamily,
       colorScheme: scheme,
       extensions: <ThemeExtension<dynamic>>[palette],
       // Latar dilukis oleh AppBackdrop di setiap halaman.
@@ -309,6 +313,7 @@ class AppTheme {
         scrolledUnderElevation: 0,
         centerTitle: true,
         titleTextStyle: TextStyle(
+          fontFamily: fontFamily,
           color: palette.textPrimary,
           fontSize: 17,
           fontWeight: FontWeight.w700,
@@ -327,7 +332,11 @@ class AppTheme {
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
         fillColor: isDark ? palette.surfaceSecondary : palette.surface,
-        hintStyle: TextStyle(color: palette.textMuted, fontSize: 13),
+        hintStyle: TextStyle(
+          fontFamily: fontFamily,
+          color: palette.textMuted,
+          fontSize: 13,
+        ),
         prefixIconColor: palette.textMuted,
         suffixIconColor: palette.textMuted,
         contentPadding: const EdgeInsets.symmetric(
@@ -363,7 +372,11 @@ class AppTheme {
           disabledForegroundColor: palette.textMuted,
           elevation: 0,
           minimumSize: const Size.fromHeight(54),
-          textStyle: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+          textStyle: const TextStyle(
+            fontFamily: fontFamily,
+            fontSize: 15,
+            fontWeight: FontWeight.w700,
+          ),
           shape: pill,
         ),
       ),
@@ -372,14 +385,21 @@ class AppTheme {
           foregroundColor: palette.textPrimary,
           minimumSize: const Size.fromHeight(50),
           side: BorderSide(color: palette.textPrimary.withValues(alpha: .7)),
-          textStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+          textStyle: const TextStyle(
+            fontFamily: fontFamily,
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+          ),
           shape: pill,
         ),
       ),
       textButtonTheme: TextButtonThemeData(
         style: TextButton.styleFrom(
           foregroundColor: palette.primaryDark,
-          textStyle: const TextStyle(fontWeight: FontWeight.w600),
+          textStyle: const TextStyle(
+            fontFamily: fontFamily,
+            fontWeight: FontWeight.w600,
+          ),
         ),
       ),
       chipTheme: ChipThemeData(
@@ -388,8 +408,16 @@ class AppTheme {
         side: BorderSide(color: palette.border),
         shape: pill,
         showCheckmark: false,
-        labelStyle: TextStyle(color: palette.textPrimary, fontSize: 12),
-        secondaryLabelStyle: TextStyle(color: palette.onPrimary, fontSize: 12),
+        labelStyle: TextStyle(
+          fontFamily: fontFamily,
+          color: palette.textPrimary,
+          fontSize: 12,
+        ),
+        secondaryLabelStyle: TextStyle(
+          fontFamily: fontFamily,
+          color: palette.onPrimary,
+          fontSize: 12,
+        ),
       ),
       switchTheme: SwitchThemeData(
         thumbColor: WidgetStateProperty.resolveWith(
@@ -417,11 +445,15 @@ class AppTheme {
         surfaceTintColor: Colors.transparent,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
         titleTextStyle: TextStyle(
+          fontFamily: fontFamily,
           color: palette.textPrimary,
           fontSize: 20,
           fontWeight: FontWeight.w700,
         ),
-        contentTextStyle: TextStyle(color: palette.textSecondary),
+        contentTextStyle: TextStyle(
+          fontFamily: fontFamily,
+          color: palette.textSecondary,
+        ),
       ),
       progressIndicatorTheme: ProgressIndicatorThemeData(
         color: palette.primaryDark,
@@ -430,7 +462,10 @@ class AppTheme {
       ),
       snackBarTheme: SnackBarThemeData(
         backgroundColor: palette.textPrimary,
-        contentTextStyle: TextStyle(color: palette.background),
+        contentTextStyle: TextStyle(
+          fontFamily: fontFamily,
+          color: palette.background,
+        ),
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
       ),

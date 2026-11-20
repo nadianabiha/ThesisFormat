@@ -5,21 +5,22 @@ import time
 import httpx
 from google.genai import errors
 
-from apps.documents.scoring import normalize_category
+from apps.documents.scoring import normalize_category, normalize_severity
 from apps.documents.semantic.gemini_client import (
     GEMINI_MODELS,
     GEMINI_TIMEOUT_SECONDS,
     generate,
 )
-from apps.documents.semantic.prompts import build_semantic_prompt
+from apps.documents.semantic.prompts import MAX_TEXT_CHARS, build_semantic_prompt
 
 # Kode error Gemini yang bersifat sementara (sibuk, kuota, timeout server).
 TRANSIENT_CODES = {429, 500, 502, 503, 504}
 
 # Batas total waktu untuk semua percobaan (detik). Model cadangan hanya
 # dicoba jika sisa waktu masih cukup untuk satu panggilan penuh, agar
-# upload tidak menggantung terlalu lama.
-TOTAL_BUDGET_SECONDS = 150
+# upload tidak menggantung terlalu lama. Tetap di bawah batas tunggu
+# "Cek ulang" di app (4 menit).
+TOTAL_BUDGET_SECONDS = 180
 
 # Jenis penyebab kegagalan AI (dipakai halaman "Kinerja AI").
 ERROR_LABELS = {
@@ -84,7 +85,11 @@ def generate_with_fallback(prompt, models=None):
             return generate(prompt, model=model), model
 
         except Exception as exc:
-            if not _is_transient(exc):
+            # Model tidak ada/dihapus Google (404): coba model berikutnya.
+            model_missing = (
+                isinstance(exc, errors.APIError) and getattr(exc, "code", None) == 404
+            )
+            if not (_is_transient(exc) or model_missing):
                 raise
 
             last_exc = exc
@@ -118,6 +123,45 @@ def _empty_result(error, error_type, started, model=""):
     }
 
 
+def paragraph_text_with_italics(paragraph):
+    """
+    Teks paragraf dengan penanda huruf miring: bagian yang dicetak miring di
+    dokumen asli dibungkus "_..._", agar AI bisa menilai apakah istilah asing
+    sudah dimiringkan (AI hanya menerima teks polos).
+    """
+    text = paragraph.get("text") or ""
+    runs = [r for r in paragraph.get("runs") or [] if isinstance(r, dict)]
+    if not any(r.get("italic") for r in runs):
+        return text
+    # Pakai run hanya jika isinya sama dengan teks paragraf (tidak ada
+    # teks yang hilang, mis. dari hyperlink/field).
+    if "".join(r.get("text") or "" for r in runs).strip() != text.strip():
+        return text
+
+    parts = []
+    italic_buffer = []
+
+    def flush():
+        chunk = "".join(italic_buffer)
+        if chunk.strip():
+            # Spasi di tepi tetap di luar penanda: "_database_ ".
+            lead = chunk[: len(chunk) - len(chunk.lstrip())]
+            trail = chunk[len(chunk.rstrip()):]
+            parts.append(f"{lead}_{chunk.strip()}_{trail}")
+        else:
+            parts.append(chunk)
+        italic_buffer.clear()
+
+    for run in runs:
+        if run.get("italic"):
+            italic_buffer.append(run.get("text") or "")
+        else:
+            flush()
+            parts.append(run.get("text") or "")
+    flush()
+    return "".join(parts)
+
+
 def run_jalur_b(parsed_document, document_type=None, aspects=None):
     """
     Menganalisis isi dokumen menggunakan Gemini.
@@ -131,10 +175,14 @@ def run_jalur_b(parsed_document, document_type=None, aspects=None):
     started = time.monotonic()
 
     paragraphs = parsed_document.get("paragraphs", [])
-    full_text = " ".join(
-        paragraph.get("text", "")
-        for paragraph in paragraphs
-        if isinstance(paragraph, dict)
+    full_text = "\n".join(
+        text
+        for text in (
+            paragraph_text_with_italics(paragraph)
+            for paragraph in paragraphs
+            if isinstance(paragraph, dict)
+        )
+        if text.strip()
     ).strip()
 
     if not full_text:
@@ -144,6 +192,12 @@ def run_jalur_b(parsed_document, document_type=None, aspects=None):
             started,
         )
 
+    # Dicatat agar terlihat jika dokumen terlalu panjang dan sebagian
+    # tidak ikut dibaca AI.
+    text_info = {
+        "text_chars": len(full_text),
+        "text_truncated": len(full_text) > MAX_TEXT_CHARS,
+    }
     prompt = build_semantic_prompt(full_text, document_type, aspects)
     allowed = None if aspects is None else {a["key"] for a in aspects}
 
@@ -193,14 +247,19 @@ def run_jalur_b(parsed_document, document_type=None, aspects=None):
             status_value = str(item.get("status", "")).lower().strip()
             status = "passed" if status_value == "passed" else "failed"
 
-            findings.append({
+            finding = {
                 "category": category,
                 "issue": issue,
                 "location": str(
                     item.get("location") or "Lokasi tidak diketahui"
                 ),
                 "status": status,
-            })
+            }
+            if status == "failed":
+                # Tingkat kesalahan dari AI (ringan/sedang/berat) menentukan
+                # besar potongan nilai; tanpa ini semua dianggap "sedang".
+                finding["severity"] = normalize_severity(item.get("severity"))
+            findings.append(finding)
 
         passed_count = sum(
             1 for item in findings if item["status"] == "passed"
@@ -222,6 +281,7 @@ def run_jalur_b(parsed_document, document_type=None, aspects=None):
             "model": model,
             "duration_ms": round((time.monotonic() - started) * 1000),
             "unknown_categories": sorted(unknown),
+            **text_info,
         }
 
     except Exception as exc:
@@ -230,4 +290,5 @@ def run_jalur_b(parsed_document, document_type=None, aspects=None):
 
         result = _empty_result(str(exc), classify_error(exc), started, model)
         result["raw_response"] = raw_response
+        result.update(text_info)
         return result

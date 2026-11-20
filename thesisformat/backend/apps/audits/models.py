@@ -112,6 +112,7 @@ class AIRun(models.Model):
     class Trigger(models.TextChoices):
         UPLOAD = "upload", "Upload mahasiswa"
         REANALYZE = "reanalyze", "Analisis ulang admin"
+        RECHECK = "recheck", "Cek ulang mahasiswa"
 
     document = models.ForeignKey(
         "documents.Document",

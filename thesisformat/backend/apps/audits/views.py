@@ -189,9 +189,12 @@ class AdminStatsView(APIView):
             if result is not None:
                 scored.append((document, result))
 
-        scores = [result["total_score"] for _, result in scored]
+        # Nilai hanya dihitung dari hasil LENGKAP (format + isi). Jika AI gagal,
+        # nilai yang tersimpan hanya nilai format, jadi tidak ikut dirata-rata.
+        complete = [(d, r) for d, r in scored if r["has_semantic_score"]]
+        scores = [result["total_score"] for _, result in complete]
         passing = sum(1 for s in scores if s >= PASSING_SCORE)
-        ai_ok = sum(1 for _, result in scored if result["has_semantic_score"])
+        ai_ok = len(complete)
 
         review_counts = Counter(
             AuditResult.objects.values_list("review_status", flat=True)
@@ -208,6 +211,8 @@ class AdminStatsView(APIView):
             "passing_count": passing,
             "passing_rate": round(passing / len(scores) * 100, 1) if scores else None,
             "needs_improvement": len(scores) - passing,
+            # Dokumen yang pemeriksaan isinya (AI) gagal: belum punya nilai akhir.
+            "incomplete_count": len(scored) - len(complete),
             "ai_success_rate": round(ai_ok / len(scored) * 100, 1) if scored else None,
             "review": {
                 key: review_counts.get(key, 0)
@@ -222,7 +227,7 @@ class AdminStatsView(APIView):
         for value, label in Document.DocumentType.choices:
             type_scores = [
                 result["total_score"]
-                for document, result in scored
+                for document, result in complete
                 if document.document_type == value
             ]
             score_by_type.append({
@@ -252,7 +257,7 @@ class AdminStatsView(APIView):
             end = start + timedelta(days=7)
             week_docs = [
                 (document, result)
-                for document, result in scored
+                for document, result in complete
                 if start <= timezone.localtime(document.uploaded_at).date() < end
             ]
             uploads = sum(
@@ -334,11 +339,15 @@ class AdminDocumentListView(APIView):
             queryset = queryset.filter(audit_result__review_status=review_status)
 
         # Rentang skor (skor koreksi admin jika ada, selain itu skor sistem).
+        # Hanya hasil lengkap: jika AI gagal, skor tersimpan hanya skor format.
         for param, lookup in (("score_min", "gte"), ("score_max", "lte")):
             value = params.get(param)
             if value not in (None, ""):
                 try:
-                    queryset = queryset.filter(**{f"effective_score__{lookup}": int(value)})
+                    queryset = queryset.filter(
+                        **{f"effective_score__{lookup}": int(value)},
+                        audit_result__recommendations__has_semantic_score=True,
+                    )
                 except ValueError:
                     pass
 
@@ -396,11 +405,13 @@ class AdminStudentListView(APIView):
         queryset = User.objects.filter(is_staff=False).annotate(
             document_count=Count("documents", distinct=True),
             last_upload=Max("documents__uploaded_at"),
+            # Rata-rata hanya dari hasil lengkap (AI berhasil).
             average_score=Avg(
                 Coalesce(
                     "documents__audit_result__corrected_score",
                     "documents__audit_result__final_score",
-                )
+                ),
+                filter=Q(documents__audit_result__recommendations__has_semantic_score=True),
             ),
             pending_review=Count(
                 "documents__audit_result",

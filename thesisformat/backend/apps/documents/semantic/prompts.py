@@ -49,9 +49,9 @@ DEFAULT_ASPECTS = [
         "instruction": (
             "Penulisan mengikuti kaidah KBBI/PUEBI. Istilah asing atau nama ilmiah (kata latin) "
             "yang belum ada padanan bahasa Indonesia-nya WAJIB dicetak miring (italic). "
-            "Karena cetak miring tidak terbaca dari teks polos, anggap istilah teknis berbahasa "
-            "Inggris seperti \"database\" atau \"framework\" sebagai kandidat yang perlu dicek "
-            "manual oleh pengguna."
+            "Teks yang dicetak miring di dokumen asli ditandai _seperti ini_. Istilah asing "
+            "yang sudah bertanda _..._ berarti SUDAH benar; laporkan hanya istilah asing yang "
+            "tidak bertanda."
         ),
     },
     {
@@ -68,6 +68,14 @@ DEFAULT_ASPECTS = [
         "instruction": "Istilah teknis harus ditulis konsisten di seluruh naskah.",
     },
 ]
+
+
+# Batas teks yang dikirim ke AI. Dokumen kampus rata-rata ±1.300 karakter
+# per halaman, jadi 250.000 karakter ≈ 180-200 halaman: cukup untuk
+# skripsi tebal, tetapi file yang luar biasa besar tidak menghabiskan kuota.
+# (Dulu 12.000 = hanya ±9 halaman pertama, sehingga AI tidak pernah melihat
+# BAB III maupun Daftar Pustaka dan hasilnya menebak-nebak.)
+MAX_TEXT_CHARS = 250_000
 
 
 def build_semantic_prompt(full_text, document_type=None, aspects=None):
@@ -88,10 +96,22 @@ def build_semantic_prompt(full_text, document_type=None, aspects=None):
     )
     categories = " / ".join(f"\"{aspect['key']}\"" for aspect in aspects)
 
+    text = full_text[:MAX_TEXT_CHARS]
+    truncated_note = (
+        "\nCatatan: dokumen ini sangat panjang, sehingga teks di bawah hanya "
+        "bagian awalnya. Jangan laporkan bagian yang tidak terlihat (mis. "
+        "Daftar Pustaka di akhir) sebagai tidak ada.\n"
+        if len(full_text) > MAX_TEXT_CHARS
+        else ""
+    )
+
     return f"""
 Kamu adalah pemeriksa format {doc_label} yang mengacu PERSIS pada Panduan
 Penulisan Karya Ilmiah Politeknik Negeri Lampung. Gunakan aturan berikut
 sebagai acuan saat memeriksa (bukan aturan umum/standar kampus lain).
+
+Catatan teks: setiap baris adalah satu paragraf. Bagian yang dicetak
+miring (italic) di dokumen asli ditandai dengan garis bawah, _seperti ini_.
 
 Periksa teks terhadap {len(aspects)} aspek berikut beserta aturannya:
 
@@ -102,17 +122,24 @@ Untuk SETIAP aspek di atas, berikan SATU entri berstatus "passed"
 (jika sesuai) atau SATU/LEBIH entri berstatus "failed" (jika ada masalah).
 Jangan melewatkan aspek apa pun, agar skor dapat dihitung secara adil.
 Nilai "category" WAJIB persis salah satu dari: {categories}.
+Untuk entri "failed", isi "severity" sesuai beratnya kesalahan:
+- "ringan": kesalahan kecil/sedikit (mis. 1-2 istilah asing belum dimiringkan, salah ketik)
+- "sedang": kesalahan yang cukup sering atau mengganggu (mis. istilah tidak konsisten di beberapa tempat, sisa tulisan draf)
+- "berat": aturan utama dilanggar atau bagian wajib tidak ada (mis. gaya sitasi salah total, daftar isi tidak ada)
+Jika satu aspek punya beberapa masalah berbeda, buat entri terpisah untuk setiap masalah.
 {{
   "findings": [
     {{
       "category": {categories},
       "issue": "deskripsi singkat; untuk status failed sebutkan aturan Polinela yang dilanggar",
       "location": "bagian/kalimat yang bermasalah (kutip singkat) atau \\"Lokasi tidak diketahui\\"",
-      "status": "passed" atau "failed"
+      "status": "passed" atau "failed",
+      "severity": "ringan" / "sedang" / "berat" (hanya untuk status failed)
     }}
   ]
 }}
 
+{truncated_note}
 Teks yang akan diperiksa:
-{full_text[:12000]}
+{text}
 """

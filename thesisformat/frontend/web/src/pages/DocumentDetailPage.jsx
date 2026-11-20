@@ -417,14 +417,15 @@ export default function DocumentDetailPage() {
         <div className="detail-main">
           <section className="hero-card">
             <div className="hero-row">
-              <ScoreRing score={doc.score} size={112} stroke={10} light caption="/100" />
+              {/* AI gagal: nilai tersimpan hanya nilai format, jadi belum ada nilai akhir. */}
+              <ScoreRing score={doc.has_semantic_score ? doc.score : null} size={112} stroke={10} light caption="/100" />
               <div style={{ flex: 1, minWidth: 220 }}>
                 <div className="row" style={{ marginBottom: 8 }}>
                   <span className="badge" style={{ background: 'rgba(255,255,255,.2)', color: '#fff' }}>
                     <TypeIcon size={13} /> {type.label}
                   </span>
                   <span className="badge" style={{ background: '#fff', color: 'var(--hero-end)' }}>
-                    {scoreLabel(doc.score)}
+                    {doc.has_semantic_score ? scoreLabel(doc.score) : 'Belum lengkap: analisis AI gagal'}
                   </span>
                 </div>
                 <h1>{doc.title}</h1>

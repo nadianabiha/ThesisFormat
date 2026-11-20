@@ -4,12 +4,17 @@ class Finding {
     required this.title,
     required this.location,
     required this.detail,
+    this.severity = '',
   });
 
   final String type;
   final String title;
   final String location;
   final String detail;
+
+  /// Tingkat kesalahan temuan AI yang gagal: ringan / sedang / berat.
+  /// Kosong untuk temuan format atau temuan yang lulus.
+  final String severity;
 
   factory Finding.fromJson(Map<String, dynamic> json) {
     final rawStatus = (json['status'] ??
@@ -56,6 +61,7 @@ class Finding {
       title: title,
       location: location,
       detail: detail,
+      severity: (json['severity'] ?? '').toString().trim().toLowerCase(),
     );
   }
 
@@ -64,6 +70,7 @@ class Finding {
         'title': title,
         'location': location,
         'detail': detail,
+        'severity': severity,
       };
 }
 

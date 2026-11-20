@@ -18,6 +18,16 @@ class FindingCard extends StatelessWidget {
       'success' => (c.success, c.successBackground, Icons.check_rounded, 'Passed'),
       _ => (c.warning, c.warningBackground, Icons.priority_high_rounded, 'Warning'),
     };
+    // Temuan AI yang gagal menampilkan tingkat kesalahannya.
+    final severityLabel = switch (finding.severity) {
+      'ringan' => 'Minor',
+      'sedang' => 'Moderate',
+      'berat' => 'Major',
+      _ => null,
+    };
+    final badge = type == 'error' && severityLabel != null
+        ? '$severityLabel error'
+        : label;
 
     return SoftCard(
       padding: const EdgeInsets.all(14),
@@ -59,7 +69,7 @@ class FindingCard extends StatelessWidget {
                         borderRadius: BorderRadius.circular(20),
                       ),
                       child: Text(
-                        label,
+                        badge,
                         style: TextStyle(
                           color: color,
                           fontSize: 10,

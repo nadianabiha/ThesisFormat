@@ -1,10 +1,13 @@
 import logging
+import os
 import traceback
 
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
+
+from apps.audits.models import AIRun
 
 from .models import Document
 from .pipeline import check_document
@@ -124,6 +127,63 @@ class DocumentResultView(APIView):
                 "file_name": document.title,
                 "document_type": document.document_type,
                 **result,
+            },
+            status=status.HTTP_200_OK,
+        )
+
+
+class DocumentRecheckView(APIView):
+    """
+    POST /api/v1/documents/<id>/recheck/ - cek ulang dokumen yang sudah
+    diunggah tanpa unggah ulang. Opsional: {"document_type": "..."} untuk
+    mengganti jenis dokumen sebelum dicek. Hasil lama ditimpa.
+    Hanya pemilik dokumen yang boleh.
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, pk):
+        document = Document.objects.filter(pk=pk, user=request.user).first()
+        if document is None:
+            return Response(
+                {"detail": "Dokumen tidak ditemukan."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        if not document.file or not os.path.exists(document.file.path):
+            return Response(
+                {"detail": "File dokumen tidak ditemukan di server. Silakan unggah ulang."},
+                status=status.HTTP_409_CONFLICT,
+            )
+
+        document_type = request.data.get("document_type")
+        if document_type:
+            valid_types = {value for value, _ in Document._meta.get_field("document_type").choices}
+            if document_type not in valid_types:
+                return Response(
+                    {"detail": "Jenis dokumen tidak valid."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            if document_type != document.document_type:
+                document.document_type = document_type
+                document.save(update_fields=["document_type", "updated_at"])
+
+        try:
+            check_document(document, trigger=AIRun.Trigger.RECHECK, user=request.user)
+        except Exception as exc:
+            logger.exception("Cek ulang gagal. Document ID: %s", document.id)
+            return Response(
+                {"detail": f"Cek ulang gagal: {exc}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+        document.refresh_from_db()
+        return Response(
+            {
+                "document_id": document.id,
+                "file_name": document.title,
+                "document_type": document.document_type,
+                **get_document_result(document),
             },
             status=status.HTTP_200_OK,
         )

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../models/document_type.dart';
 import '../theme/app_theme.dart';
+import 'app_logo.dart';
 
 /// Lebar maksimum konten agar tampilan tetap seperti aplikasi mobile
 /// saat dibuka di browser (flutter run -d chrome).
@@ -205,7 +206,8 @@ class ScoreRing extends StatelessWidget {
     this.caption = '/100',
   });
 
-  final int score;
+  /// null = belum ada nilai akhir (ditampilkan "-").
+  final int? score;
   final double size;
   final double stroke;
   final Color? color;
@@ -216,7 +218,7 @@ class ScoreRing extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = context.appColors;
-    final value = score.clamp(0, 100);
+    final value = (score ?? 0).clamp(0, 100);
     final text = textColor ?? c.textPrimary;
 
     return SizedBox(
@@ -238,7 +240,7 @@ class ScoreRing extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               Text(
-                '$value',
+                score == null ? '-' : '$value',
                 style: TextStyle(
                   color: text,
                   fontSize: size * (caption == null ? .32 : .28),
@@ -332,8 +334,10 @@ class DocTypeIcon extends StatelessWidget {
   }
 }
 
-/// Ilustrasi sederhana: gumpalan warna, kertas dokumen, dan lencana.
-/// Dibuat dari bentuk dasar, tanpa aset gambar.
+/// Ilustrasi utama di setiap halaman: logo ThesisFormat dengan cahaya
+/// lembut di belakangnya. Parameter [icon], [badgeIcon], dan [badgeColor]
+/// dipertahankan agar pemanggil lama tetap jalan, tetapi tidak dipakai lagi
+/// (semua halaman kini menampilkan logo yang sama).
 class BlobIllustration extends StatelessWidget {
   const BlobIllustration({
     super.key,
@@ -353,103 +357,37 @@ class BlobIllustration extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = context.appColors;
-    final s = size;
-
-    Widget line(double width) => Container(
-      width: width,
-      height: s * .032,
-      decoration: BoxDecoration(
-        color: c.primaryLight,
-        borderRadius: BorderRadius.circular(s),
-      ),
-    );
-
-    Widget dot(double d, Color color) => Container(
-      width: d,
-      height: d,
-      decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-    );
+    final glow = blobColor ?? c.primary.withValues(alpha: c.isDark ? .22 : .35);
 
     return SizedBox(
-      width: s,
-      height: s,
+      width: size,
+      height: size,
       child: Stack(
-        clipBehavior: Clip.none,
+        alignment: Alignment.center,
         children: [
-          Positioned(
-            left: s * .06,
-            top: s * .08,
-            child: Container(
-              width: s * .88,
-              height: s * .84,
-              decoration: BoxDecoration(
-                color: blobColor ?? c.primaryLight,
-                borderRadius: BorderRadius.only(
-                  topLeft: Radius.circular(s * .5),
-                  topRight: Radius.circular(s * .36),
-                  bottomLeft: Radius.circular(s * .34),
-                  bottomRight: Radius.circular(s * .5),
+          // Cahaya lembut di belakang logo.
+          Container(
+            width: size,
+            height: size,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              gradient: RadialGradient(
+                colors: [glow, glow.withValues(alpha: 0)],
+              ),
+            ),
+          ),
+          Container(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(size * .17),
+              boxShadow: [
+                BoxShadow(
+                  color: c.primaryDark.withValues(alpha: .22),
+                  blurRadius: size * .12,
+                  offset: Offset(0, size * .05),
                 ),
-              ),
+              ],
             ),
-          ),
-          Positioned(
-            right: s * .02,
-            top: s * .04,
-            child: dot(s * .09, c.warning.withValues(alpha: .85)),
-          ),
-          Positioned(
-            left: 0,
-            bottom: s * .18,
-            child: dot(s * .06, c.primaryDark.withValues(alpha: .45)),
-          ),
-          Positioned(
-            left: s * .27,
-            top: s * .19,
-            child: Container(
-              width: s * .46,
-              height: s * .58,
-              padding: EdgeInsets.all(s * .055),
-              decoration: BoxDecoration(
-                color: c.card,
-                borderRadius: BorderRadius.circular(s * .07),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: .10),
-                    blurRadius: 16,
-                    offset: const Offset(0, 6),
-                  ),
-                ],
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Icon(icon, color: c.primaryDark, size: s * .13),
-                  SizedBox(height: s * .04),
-                  line(s * .33),
-                  SizedBox(height: s * .03),
-                  line(s * .26),
-                  SizedBox(height: s * .03),
-                  line(s * .31),
-                  SizedBox(height: s * .03),
-                  line(s * .18),
-                ],
-              ),
-            ),
-          ),
-          Positioned(
-            right: s * .12,
-            bottom: s * .13,
-            child: Container(
-              width: s * .21,
-              height: s * .21,
-              decoration: BoxDecoration(
-                color: badgeColor ?? c.warning,
-                shape: BoxShape.circle,
-                border: Border.all(color: c.surface, width: 3),
-              ),
-              child: Icon(badgeIcon, color: Colors.white, size: s * .11),
-            ),
+            child: AppLogo(size: size * .74),
           ),
         ],
       ),

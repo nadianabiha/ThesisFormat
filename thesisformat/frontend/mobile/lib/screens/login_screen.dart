@@ -16,14 +16,14 @@ class LoginScreen extends StatefulWidget {
 
 class _LoginScreenState extends State<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _email = TextEditingController();
+  final _identifier = TextEditingController();
   final _password = TextEditingController();
   bool _obscure = true;
   bool _submitting = false;
 
   @override
   void dispose() {
-    _email.dispose();
+    _identifier.dispose();
     _password.dispose();
     super.dispose();
   }
@@ -33,7 +33,7 @@ class _LoginScreenState extends State<LoginScreen> {
     setState(() => _submitting = true);
     try {
       await const ApiService().login(
-        email: _email.text,
+        identifier: _identifier.text,
         password: _password.text,
       );
       if (!mounted) return;
@@ -56,11 +56,11 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Future<void> _openRegister() async {
-    final email = await Navigator.of(context).push<String>(
+    final identifier = await Navigator.of(context).push<String>(
       MaterialPageRoute<String>(builder: (_) => const RegisterScreen()),
     );
-    if (!mounted || email == null) return;
-    _email.text = email;
+    if (!mounted || identifier == null) return;
+    _identifier.text = identifier;
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
         content: Text('Account created successfully. Please sign in.'),
@@ -83,33 +83,18 @@ class _LoginScreenState extends State<LoginScreen> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             if (showHeader) ...[
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    Icons.auto_stories_rounded,
-                    color: c.primaryDark,
-                    size: 20,
-                  ),
-                  const SizedBox(width: 6),
-                  Text(
-                    'ThesisFormat',
-                    style: TextStyle(
-                      color: c.primaryExtraDark,
-                      fontSize: 15,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 18),
-              const Center(
-                child: BlobIllustration(
-                  size: 170,
-                  icon: Icons.verified_user_rounded,
+              const Center(child: BlobIllustration(size: 150)),
+              const SizedBox(height: 6),
+              Text(
+                'ThesisFormat',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: c.primaryExtraDark,
+                  fontSize: 17,
+                  fontWeight: FontWeight.w800,
                 ),
               ),
-              const SizedBox(height: 22),
+              const SizedBox(height: 18),
             ],
             Text(
               'Welcome back',
@@ -127,17 +112,19 @@ class _LoginScreenState extends State<LoginScreen> {
               style: TextStyle(color: c.textSecondary, height: 1.5),
             ),
             const SizedBox(height: 26),
-            const Text('Email', style: label),
+            const Text('Username or email', style: label),
             const SizedBox(height: 8),
             TextFormField(
-              controller: _email,
+              controller: _identifier,
               keyboardType: TextInputType.emailAddress,
+              autocorrect: false,
               decoration: const InputDecoration(
-                hintText: 'name@example.com',
-                prefixIcon: Icon(Icons.mail_outline_rounded),
+                hintText: 'Username or email',
+                prefixIcon: Icon(Icons.person_outline_rounded),
               ),
-              validator: (v) =>
-                  v == null || v.trim().isEmpty ? 'Email is required.' : null,
+              validator: (v) => v == null || v.trim().isEmpty
+                  ? 'Username or email is required.'
+                  : null,
             ),
             const SizedBox(height: 16),
             const Text('Password', style: label),

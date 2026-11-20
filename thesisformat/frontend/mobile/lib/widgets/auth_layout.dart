@@ -94,12 +94,6 @@ class _AuthPanel extends StatelessWidget {
               children: [
                 const Row(
                   children: [
-                    Icon(
-                      Icons.auto_stories_rounded,
-                      color: Colors.white,
-                      size: 24,
-                    ),
-                    SizedBox(width: 8),
                     Text(
                       'ThesisFormat',
                       style: TextStyle(
