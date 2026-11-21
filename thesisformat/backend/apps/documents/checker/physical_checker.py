@@ -1,5 +1,7 @@
 import re
 
+from .layout_checks import LAYOUT_CHECKS as _LAYOUT_CHECKS
+
 # ---------------------------------------------------------------------------
 # Teks isi vs judul/tabel (Pedoman Penulisan Karya Ilmiah Polinela 2018)
 # - Teks isi: Times New Roman 12, spasi 1,5, rata kiri-kanan (1.4).
@@ -77,7 +79,7 @@ def _cover_end_index(paragraphs):
     """
     for index, paragraph in enumerate(paragraphs):
         text = (paragraph.get("text") or "").strip()
-        if not text or not _is_heading_like(paragraph):
+        if not text or paragraph.get("in_table") or not _is_heading_like(paragraph):
             continue
         if text.upper().startswith("BAB") or _section_name(text).startswith(_FIRST_SECTION_STARTS):
             return index
@@ -98,6 +100,8 @@ def _body_paragraphs(parsed_document):
         text = (paragraph.get("text") or "").strip()
         if not text:
             continue
+        if paragraph.get("in_table"):
+            continue  # isi tabel: 10 pt, spasi 1 (Pedoman 1.4.1c-d)
 
         if _is_heading_like(paragraph):
             section = _section_name(text)
@@ -133,6 +137,46 @@ _MARGIN_LABELS = {
     "left_margin": "kiri",
     "right_margin": "kanan",
 }
+
+
+_ESTIMATE_TOLERANCE_CM = 0.3
+_ESTIMATE_NOTE = " (File PDF: margin diperkirakan dari posisi teks.)"
+
+
+def _reliable_values(parsed_document, paragraphs, values_of):
+    """
+    Nilai yang boleh dinilai. Untuk PDF (tata letak diperkirakan), nilai
+    yang hanya muncul di sedikit paragraf dianggap salah baca (biasanya
+    tabel tanpa garis) dan diabaikan: minimal 2 paragraf dan 10% dari
+    paragraf yang diperiksa. DOCX: semua nilai dinilai.
+    """
+    counts = {}
+    for paragraph in paragraphs:
+        for value in values_of(paragraph):
+            counts[value] = counts.get(value, 0) + 1
+    if not parsed_document.get("layout_estimated"):
+        return set(counts)
+    minimum = max(2, 0.10 * len(paragraphs))
+    return {value for value, count in counts.items() if count >= minimum}
+
+
+def _where(paragraphs, is_wrong):
+    """Daftar bab (urut) tempat paragraf yang salah berada."""
+    chapters = []
+    for paragraph in paragraphs:
+        chapter = paragraph.get("chapter")
+        if chapter and chapter not in chapters and is_wrong(paragraph):
+            chapters.append(chapter)
+    return chapters
+
+
+def _where_text(chapters):
+    if not chapters:
+        return ""
+    shown = ", ".join(chapters[:4])
+    if len(chapters) > 4:
+        shown += f", dan {len(chapters) - 4} bagian lain"
+    return f" Terjadi di: {shown}."
 
 
 def _scope_prefix(scope):
@@ -211,6 +255,10 @@ def check_physical_rules(parsed_document, rules):
                 for run in paragraph.get("runs", [])
                 if run.get("font_name")
             }
+            chapters = _where(target_paragraphs, lambda p: any(
+                r.get("font_name") and r.get("font_name") != expected_font
+                for r in p.get("runs", [])
+            ))
 
             if not found_fonts:
                 status = "pending"
@@ -230,7 +278,7 @@ def check_physical_rules(parsed_document, rules):
                         f"{_scope_prefix(scope)}Font tidak sesuai. Ditemukan: "
                         f"{', '.join(sorted(invalid_fonts))}. "
                         f"Seharusnya: {expected_font}."
-                    )
+                    ) + _where_text(chapters)
                 else:
                     status = "passed"
                     message = (
@@ -244,6 +292,7 @@ def check_physical_rules(parsed_document, rules):
                 "message": message,
                 "expected": expected_font,
                 "found": sorted(found_fonts),
+                "chapters": chapters if status == "failed" else [],
             })
 
         # ==========================================
@@ -261,6 +310,14 @@ def check_physical_rules(parsed_document, rules):
                 for run in paragraph.get("runs", [])
                 if run.get("font_size") is not None
             }
+            found_sizes &= _reliable_values(parsed_document, target_paragraphs, lambda p: {
+                r.get("font_size") for r in p.get("runs", []) if r.get("font_size") is not None
+            })
+            chapters = _where(target_paragraphs, lambda p: any(
+                r.get("font_size") in found_sizes
+                and not _cm_close(r.get("font_size"), expected_size, tolerance=0.01)
+                for r in p.get("runs", [])
+            ))
 
             if not found_sizes:
                 status = "pending"
@@ -280,7 +337,7 @@ def check_physical_rules(parsed_document, rules):
                         f"{_scope_prefix(scope)}Ukuran font tidak sesuai. Ditemukan: "
                         f"{', '.join(map(str, sorted(invalid_sizes)))} pt. "
                         f"Seharusnya: {expected_size} pt."
-                    )
+                    ) + _where_text(chapters)
                 else:
                     status = "passed"
                     message = (
@@ -294,6 +351,7 @@ def check_physical_rules(parsed_document, rules):
                 "message": message,
                 "expected": expected_size,
                 "found": sorted(found_sizes),
+                "chapters": chapters if status == "failed" else [],
             })
 
         # ==========================================
@@ -310,6 +368,14 @@ def check_physical_rules(parsed_document, rules):
                 for paragraph in target_paragraphs
                 if paragraph.get("alignment")
             }
+            found_alignments &= _reliable_values(
+                parsed_document, target_paragraphs,
+                lambda p: {p.get("alignment")} if p.get("alignment") else set(),
+            )
+            chapters = _where(target_paragraphs, lambda p: (
+                p.get("alignment") in found_alignments
+                and p.get("alignment") != expected_alignment
+            ))
 
             if not found_alignments:
                 status = "pending"
@@ -329,7 +395,7 @@ def check_physical_rules(parsed_document, rules):
                         f"{_scope_prefix(scope)}Perataan tidak sesuai. Ditemukan: "
                         f"{', '.join(sorted(invalid_alignments))}. "
                         f"Seharusnya: {expected_alignment}."
-                    )
+                    ) + _where_text(chapters)
                 else:
                     status = "passed"
                     message = (
@@ -343,6 +409,7 @@ def check_physical_rules(parsed_document, rules):
                 "message": message,
                 "expected": expected_alignment,
                 "found": sorted(found_alignments),
+                "chapters": chapters if status == "failed" else [],
             })
 
         # ==========================================
@@ -364,6 +431,14 @@ def check_physical_rules(parsed_document, rules):
                 and not isinstance(paragraph.get("line_spacing"), bool)
                 and paragraph.get("line_spacing") <= 5
             }
+            found_spacings &= _reliable_values(
+                parsed_document, target_paragraphs,
+                lambda p: {p.get("line_spacing")} if p.get("line_spacing") in found_spacings else set(),
+            )
+            chapters = _where(target_paragraphs, lambda p: (
+                p.get("line_spacing") in found_spacings
+                and not _cm_close(p.get("line_spacing"), expected_spacing, tolerance=0.01)
+            ))
 
             if not found_spacings:
                 status = "pending"
@@ -385,7 +460,7 @@ def check_physical_rules(parsed_document, rules):
                         f"{_scope_prefix(scope)}Spasi baris tidak sesuai. Ditemukan: "
                         f"{', '.join(map(str, sorted(invalid_spacings)))}. "
                         f"Seharusnya: {expected_spacing}."
-                    )
+                    ) + _where_text(chapters)
                 else:
                     status = "passed"
                     message = (
@@ -399,6 +474,7 @@ def check_physical_rules(parsed_document, rules):
                 "message": message,
                 "expected": expected_spacing,
                 "found": sorted(found_spacings),
+                "chapters": chapters if status == "failed" else [],
             })
 
         # ==========================================
@@ -430,6 +506,9 @@ def check_physical_rules(parsed_document, rules):
                 continue
 
             invalid_sections = []
+            # PDF: margin diperkirakan dari posisi teks, jadi hanya dinilai
+            # salah jika teks melewati batas margin (bukan harus persis).
+            estimated = bool(parsed_document.get("layout_estimated"))
 
             for index, section in enumerate(found_sections, start=1):
                 section_errors = []
@@ -443,10 +522,16 @@ def check_physical_rules(parsed_document, rules):
                     expected = expected_margin.get(margin_key)
                     found = section.get(margin_key)
 
-                    if (
-                        expected is not None
-                        and not _cm_close(found, expected)
-                    ):
+                    if estimated:
+                        wrong = (
+                            expected is not None
+                            and isinstance(found, (int, float))
+                            and found < float(expected) - _ESTIMATE_TOLERANCE_CM
+                        )
+                    else:
+                        wrong = expected is not None and not _cm_close(found, expected)
+
+                    if wrong:
                         found_text = (
                             f"{float(found):.2f}".replace(".", ",")
                             if isinstance(found, (int, float)) else found
@@ -471,6 +556,8 @@ def check_physical_rules(parsed_document, rules):
                     message += (
                         f" (Terjadi pada {len(invalid_sections)} bagian dokumen.)"
                     )
+                if estimated:
+                    message += _ESTIMATE_NOTE
             else:
                 status = "passed"
                 message = (
@@ -489,6 +576,18 @@ def check_physical_rules(parsed_document, rules):
                 "found": (
                     invalid_sections if invalid_sections else found_sections
                 ),
+            })
+
+        # ==========================================
+        # RULE: UKURAN KERTAS, NOMOR HALAMAN, LOGO, SAMPUL
+        # ==========================================
+        elif rule_key in _LAYOUT_CHECKS:
+            value = _get_rule_value(rule_value)
+            if not isinstance(value, dict):
+                value = {}
+            findings.append({
+                "rule_key": rule_key,
+                **_LAYOUT_CHECKS[rule_key](parsed_document, value),
             })
 
         # ==========================================

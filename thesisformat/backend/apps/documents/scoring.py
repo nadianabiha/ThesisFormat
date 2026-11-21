@@ -60,7 +60,25 @@ PHYSICAL_LABELS = {
     "alignment": "Perataan teks",
     "line_spacing": "Spasi baris",
     "margin": "Margin halaman",
+    "paper_size": "Ukuran kertas",
+    "page_number": "Nomor halaman",
+    "logo_size": "Ukuran logo sampul",
+    "cover": "Kelengkapan sampul",
 }
+
+# Label bab untuk temuan yang tidak terikat satu bab.
+WHOLE_DOCUMENT = "Seluruh dokumen"
+
+
+def physical_chapter(finding):
+    """
+    Bab tempat temuan format: dari aturannya (mis. sampul), atau satu-satunya
+    bab tempat kesalahan ditemukan; selain itu "Seluruh dokumen".
+    """
+    if finding.get("chapter"):
+        return finding["chapter"]
+    chapters = finding.get("chapters") or []
+    return chapters[0] if len(chapters) == 1 else WHOLE_DOCUMENT
 
 # Potongan nilai per temuan semantik sesuai tingkat kesalahannya.
 # Setiap aspek mulai dari 100, dikurangi potongan, minimal 0.
@@ -144,14 +162,17 @@ def normalize_physical(findings):
     items = []
     for f in findings or []:
         status = f.get("status", "pending")
+        chapter = physical_chapter(f)
         items.append({
             "source": "physical",
             "rule_key": f.get("rule_key", ""),
             "status": status,
             "type": _TYPE_BY_STATUS.get(status, "warning"),
             "title": str(f.get("rule_key", "aturan")).replace("_", " "),
-            "location": "Dokumen",
+            "location": "Dokumen" if chapter == WHOLE_DOCUMENT else chapter,
             "detail": f.get("message", ""),
+            "chapter": chapter,
+            "chapters": f.get("chapters") or [],
         })
     return items
 
@@ -170,6 +191,7 @@ def normalize_semantic(findings):
             "title": SEMANTIC_CATEGORIES.get(category, "Isi & struktur"),
             "location": f.get("location") or "Lokasi tidak diketahui",
             "detail": f.get("issue", ""),
+            "chapter": f.get("chapter") or WHOLE_DOCUMENT,
         }
         if status == "failed":
             item["severity"] = normalize_severity(f.get("severity"))

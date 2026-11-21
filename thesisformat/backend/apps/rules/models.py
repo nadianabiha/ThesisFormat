@@ -52,17 +52,28 @@ class MasterRule(models.Model):
     def for_document(cls, category, document_type):
         """
         Aturan aktif untuk satu jenis dokumen: aturan umum ditambah aturan
-        khusus. Jika rule_key sama, aturan khusus yang dipakai.
+        khusus. Jika rule_key sama, aturan khusus yang menentukan:
+        - aturan khusus Aktif    -> aturan khusus itu yang dipakai;
+        - aturan khusus Nonaktif -> aspek itu TIDAK dicek untuk jenis ini
+          (mis. abstrak tidak dicek untuk Proposal Penelitian), walaupun
+          aturan umumnya aktif.
         """
-        rules = cls.objects.filter(
+        rules = list(cls.objects.filter(
             category=category,
-            active=True,
             document_type__in=["", document_type],
-        )
-        by_key = {}
+        ))
+        by_key = {
+            rule.rule_key: rule
+            for rule in rules
+            if not rule.document_type and rule.active
+        }
         for rule in rules:
-            if rule.rule_key not in by_key or rule.document_type:
+            if not rule.document_type:
+                continue
+            if rule.active:
                 by_key[rule.rule_key] = rule
+            else:
+                by_key.pop(rule.rule_key, None)
         return list(by_key.values())
 
     @classmethod

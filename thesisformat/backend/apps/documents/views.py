@@ -25,9 +25,11 @@ class DocumentUploadView(APIView):
         serializer = DocumentSerializer(data=request.data)
 
         if not serializer.is_valid():
+            # Pesan file (format/ukuran) ditampilkan langsung di aplikasi.
+            file_errors = serializer.errors.get("file") or []
             return Response(
                 {
-                    "detail": "Data dokumen tidak valid.",
+                    "detail": str(file_errors[0]) if file_errors else "Data dokumen tidak valid.",
                     "errors": serializer.errors,
                 },
                 status=status.HTTP_400_BAD_REQUEST,

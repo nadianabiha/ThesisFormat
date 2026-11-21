@@ -412,9 +412,22 @@ PHYSICAL_INPUTS = {
     "alignment": {"type": "select", "options": ALIGNMENTS},
     "line_spacing": {"type": "number", "min": 1, "max": 3, "step": 0.05, "unit": "spasi"},
     "margin": {"type": "margin", "min": 0, "max": 10, "unit": "cm"},
+    # Aturan tata letak (migration rules 0007): nilainya berisi beberapa
+    # angka/pilihan sekaligus, jadi butuh kolom isian khusus.
+    "paper_size": {"type": "size", "min": 1, "max": 60, "unit": "cm"},
+    "logo_size": {"type": "size", "min": 0.1, "max": 30, "unit": "cm"},
+    "page_number": {
+        "type": "page_number",
+        "formats": ["roman_lower", "roman_upper", "arabic"],
+        "verticals": ["top", "bottom"],
+        "horizontals": ["left", "center", "right"],
+    },
+    "cover": {"type": "cover", "elements": ["logo", "npm", "institusi", "tahun"]},
 }
 
 MARGIN_KEYS = ["top_margin", "right_margin", "bottom_margin", "left_margin"]
+SIZE_KEYS = ["width_cm", "height_cm", "tolerance_cm"]
+PAGE_GROUPS = ["front", "body"]
 
 
 def _rule_snapshot(rule):
@@ -492,6 +505,53 @@ def _clean_physical_value(rule_key, value):
                 return None, f"Margin harus antara {spec['min']} dan {spec['max']} cm."
             cleaned[key] = int(number) if number.is_integer() else number
         return cleaned, None
+
+    if kind == "size":
+        if not isinstance(value, dict):
+            return None, "Isi lebar, tinggi, dan toleransi."
+        cleaned = {}
+        for key in SIZE_KEYS:
+            try:
+                number = float(value.get(key))
+            except (TypeError, ValueError):
+                return None, "Isi lebar, tinggi, dan toleransi dengan angka."
+            low = 0 if key == "tolerance_cm" else spec["min"]
+            high = 5 if key == "tolerance_cm" else spec["max"]
+            if not low <= number <= high:
+                return None, f"Nilai harus antara {low} dan {high} cm."
+            cleaned[key] = int(number) if number.is_integer() else number
+        return cleaned, None
+
+    if kind == "page_number":
+        if not isinstance(value, dict):
+            return None, "Isi aturan nomor halaman awal dan bagian isi."
+        cleaned = {}
+        for group in PAGE_GROUPS:
+            part = value.get(group)
+            if not isinstance(part, dict):
+                return None, "Isi aturan nomor halaman awal dan bagian isi."
+            # Letak boleh "Tidak dicek" (kosong/None): pedoman Polinela tidak
+            # menjelaskan letaknya dengan tegas, jadi admin boleh tidak menilainya.
+            fmt = part.get("format")
+            vertical = part.get("vertical") or None
+            horizontal = part.get("horizontal") or None
+            if fmt not in spec["formats"] \
+                    or (vertical is not None and vertical not in spec["verticals"]) \
+                    or (horizontal is not None and horizontal not in spec["horizontals"]):
+                return None, "Pilih format, letak, dan posisi nomor halaman."
+            cleaned[group] = {"format": fmt, "vertical": vertical, "horizontal": horizontal}
+        return cleaned, None
+
+    if kind == "cover":
+        if not isinstance(value, dict):
+            return None, "Pilih elemen sampul yang wajib."
+        required = [key for key in spec["elements"] if key in (value.get("required") or [])]
+        if not required:
+            return None, "Pilih minimal satu elemen sampul yang wajib."
+        institution = str(value.get("institution") or "").strip()
+        if "institusi" in required and not 1 <= len(institution) <= 100:
+            return None, "Isi nama institusi (1-100 karakter)."
+        return {"required": required, "institution": institution or "POLITEKNIK NEGERI LAMPUNG"}, None
 
     return value, None
 

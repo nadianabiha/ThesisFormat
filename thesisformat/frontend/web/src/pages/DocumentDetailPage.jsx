@@ -80,6 +80,9 @@ function FindingItem({ finding, canReview, rejected, onToggle }) {
             {rejected ? 'Ditandai keliru' : style.label}
           </span>
         </div>
+        {finding.chapter && finding.chapter !== finding.location && (
+          <div className="finding-loc">Bab: {finding.chapter}</div>
+        )}
         {finding.location && <div className="finding-loc">{finding.location}</div>}
         {finding.detail && <div className="finding-detail">{finding.detail}</div>}
         {canReview && finding.status !== 'passed' && (

@@ -5,6 +5,7 @@ import '../models/document_model.dart';
 import '../models/document_type.dart';
 import '../services/api_service.dart';
 import '../theme/app_theme.dart';
+import '../widgets/chapter_groups.dart';
 import '../widgets/finding_card.dart';
 import '../widgets/responsive.dart';
 import '../widgets/score_card.dart';
@@ -23,6 +24,9 @@ class ResultScreen extends StatefulWidget {
 class _ResultScreenState extends State<ResultScreen> {
   /// null = semua temuan; selain itu 'error' / 'warning' / 'success'.
   String? _filter;
+
+  /// true = temuan dikelompokkan per bab; false = satu daftar.
+  bool _byChapter = true;
 
   /// Dokumen yang ditampilkan; diperbarui setelah "Check again".
   late DocumentModel _document = widget.document;
@@ -304,6 +308,25 @@ class _ResultScreenState extends State<ResultScreen> {
       SectionHeader(title: 'Findings (${result.findings.length})'),
       const SizedBox(height: 10),
       if (result.findings.isNotEmpty) ...[
+        SegmentedButton<bool>(
+          showSelectedIcon: false,
+          segments: const [
+            ButtonSegment(
+              value: true,
+              icon: Icon(Icons.menu_book_rounded, size: 18),
+              label: Text('By chapter'),
+            ),
+            ButtonSegment(
+              value: false,
+              icon: Icon(Icons.view_list_rounded, size: 18),
+              label: Text('List'),
+            ),
+          ],
+          selected: {_byChapter},
+          onSelectionChanged: (value) =>
+              setState(() => _byChapter = value.first),
+        ),
+        const SizedBox(height: 10),
         SingleChildScrollView(
           scrollDirection: Axis.horizontal,
           child: Row(
@@ -341,6 +364,8 @@ class _ResultScreenState extends State<ResultScreen> {
           icon: Icons.filter_alt_off_outlined,
           message: 'Tidak ada temuan untuk filter ini.',
         )
+      else if (_byChapter)
+        ChapterGroups(findings: filtered)
       else
         // Tablet: temuan 2 kolom; HP & desktop (kolom kanan): menyesuaikan.
         ResponsiveWrapGrid(

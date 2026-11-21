@@ -13,6 +13,10 @@ import 'document_events.dart';
 class ApiService {
   const ApiService();
 
+  /// Alamat backend. Bawaan 127.0.0.1 hanya untuk pengembangan di laptop.
+  /// Saat build untuk HP/server, WAJIB diisi alamat server, contoh:
+  ///   flutter build apk --dart-define=API_BASE_URL=http://103.151.63.84
+  /// Tanpa ini, aplikasi di HP mencari backend di HP itu sendiri.
   static const String baseUrl = String.fromEnvironment(
     'API_BASE_URL',
     defaultValue: 'http://127.0.0.1:8000',

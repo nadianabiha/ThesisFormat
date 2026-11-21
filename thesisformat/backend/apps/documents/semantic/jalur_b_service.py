@@ -5,6 +5,7 @@ import time
 import httpx
 from google.genai import errors
 
+from apps.documents.checker.chapters import match_chapter
 from apps.documents.scoring import normalize_category, normalize_severity
 from apps.documents.semantic.gemini_client import (
     GEMINI_MODELS,
@@ -198,7 +199,8 @@ def run_jalur_b(parsed_document, document_type=None, aspects=None):
         "text_chars": len(full_text),
         "text_truncated": len(full_text) > MAX_TEXT_CHARS,
     }
-    prompt = build_semantic_prompt(full_text, document_type, aspects)
+    chapters = parsed_document.get("chapters") or []
+    prompt = build_semantic_prompt(full_text, document_type, aspects, chapters)
     allowed = None if aspects is None else {a["key"] for a in aspects}
 
     raw_response = ""
@@ -220,7 +222,9 @@ def run_jalur_b(parsed_document, document_type=None, aspects=None):
         cleaned = re.sub(r"\s*```$", "", cleaned)
 
         parsed = json.loads(cleaned)
-        raw_findings = parsed.get("findings", [])
+        # Sebagian model menjawab langsung berupa daftar [...] alih-alih
+        # {"findings": [...]}; keduanya diterima.
+        raw_findings = parsed if isinstance(parsed, list) else parsed.get("findings", [])
 
         if not isinstance(raw_findings, list):
             raise ValueError("Format findings dari Gemini tidak valid.")
@@ -254,6 +258,7 @@ def run_jalur_b(parsed_document, document_type=None, aspects=None):
                     item.get("location") or "Lokasi tidak diketahui"
                 ),
                 "status": status,
+                "chapter": match_chapter(item.get("chapter"), chapters),
             }
             if status == "failed":
                 # Tingkat kesalahan dari AI (ringan/sedang/berat) menentukan

@@ -27,13 +27,33 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.1/howto/deployment/checklist/
 
-# SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-hr6r(#725+kjotv4t!sezw-@^mnkmmv^@#@fey^tj$!0iq@=9g'
+def _env_bool(name, default=False):
+    return os.getenv(name, str(default)).strip().lower() in ("1", "true", "yes", "on")
+
+
+def _env_list(name):
+    return [item.strip() for item in os.getenv(name, "").split(",") if item.strip()]
+
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+# Server produksi: DEBUG=False di .env. Bawaan False agar aman jika lupa.
+DEBUG = _env_bool("DEBUG", False)
 
-ALLOWED_HOSTS = []
+# SECURITY WARNING: keep the secret key used in production secret!
+# Kunci rahasia (dipakai untuk token login JWT) HANYA dibaca dari .env.
+SECRET_KEY = os.getenv("SECRET_KEY", "")
+if not SECRET_KEY:
+    if not DEBUG:
+        from django.core.exceptions import ImproperlyConfigured
+
+        raise ImproperlyConfigured("SECRET_KEY belum diisi di file .env.")
+    # Hanya untuk pengembangan lokal (DEBUG=True) jika .env belum lengkap.
+    SECRET_KEY = "django-insecure-dev-only-ganti-di-env"
+
+# Alamat yang boleh mengakses server, mis. ALLOWED_HOSTS=103.151.63.84
+# (pisahkan dengan koma). Saat DEBUG=True dan kosong, Django otomatis
+# mengizinkan localhost/127.0.0.1.
+ALLOWED_HOSTS = _env_list("ALLOWED_HOSTS")
 
 
 # Application definition
@@ -138,6 +158,9 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/5.1/howto/static-files/
 
 STATIC_URL = 'static/'
+# Tujuan `python manage.py collectstatic` di server; folder ini
+# disajikan Nginx di /static/ (tampilan Django Admin Panel).
+STATIC_ROOT = BASE_DIR / "staticfiles"
 
 MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
@@ -162,8 +185,19 @@ SIMPLE_JWT = {
     "REFRESH_TOKEN_LIFETIME": timedelta(days=7),
     "AUTH_HEADER_TYPES": ("Bearer",),
 }
-# Pengaturan CORS untuk pengembangan Flutter Web lokal saja.
+# CORS: alamat web yang boleh memanggil API.
+# - Pengembangan (DEBUG=True): localhost / 127.0.0.1 port berapa pun.
+# - Server: isi CORS_ALLOWED_ORIGINS di .env, mis. http://103.151.63.84
 CORS_ALLOWED_ORIGIN_REGEXES = [
     r"^http://localhost:\d+$",
     r"^http://127\.0\.0\.1:\d+$",
-]
+] if DEBUG else []
+CORS_ALLOWED_ORIGINS = _env_list("CORS_ALLOWED_ORIGINS")
+
+# Alamat asal yang dipercaya untuk form login Django Admin Panel di server,
+# mis. CSRF_TRUSTED_ORIGINS=http://103.151.63.84
+CSRF_TRUSTED_ORIGINS = _env_list("CSRF_TRUSTED_ORIGINS")
+
+# 8. Batas unggahan dokumen (sama dengan batas di aplikasi: 20 MB).
+MAX_UPLOAD_MB = 20
+ALLOWED_UPLOAD_EXTENSIONS = (".pdf", ".docx")

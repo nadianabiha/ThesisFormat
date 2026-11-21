@@ -1,0 +1,24 @@
+# Library backend ThesisFormat (versi sama dengan venv pengembangan).
+# Pasang dengan: pip install -r requirements.txt
+
+# Django + REST API + login JWT
+Django==5.1.15
+djangorestframework==3.15.2
+djangorestframework_simplejwt==5.5.1
+django-cors-headers==4.9.0
+python-dotenv==1.2.4
+
+# Database PostgreSQL
+psycopg[binary]==3.3.6
+
+# Jalur A: pembaca dokumen .docx dan .pdf
+python-docx==1.2.0
+pdfplumber==0.11.10
+pillow==12.3.0
+
+# Jalur B: Gemini API
+google-genai==2.31.0
+httpx==0.28.1
+
+# Server Linux 
+gunicorn==23.0.0

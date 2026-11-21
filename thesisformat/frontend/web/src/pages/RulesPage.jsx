@@ -21,9 +21,157 @@ const ALIGNMENT_LABELS = {
   JUSTIFY: 'Rata kiri-kanan (justify)',
 }
 
+const SIZE_LABELS = {
+  width_cm: 'Lebar',
+  height_cm: 'Tinggi',
+  tolerance_cm: 'Toleransi (±)',
+}
+
+const PAGE_GROUP_LABELS = {
+  front: 'Halaman awal (kata pengantar, daftar isi, dll.)',
+  body: 'Bagian isi (mulai Pendahuluan)',
+}
+
+const PAGE_OPTION_LABELS = {
+  '': 'Tidak dicek',
+  roman_lower: 'Romawi kecil (i, ii, iii)',
+  roman_upper: 'Romawi besar (I, II, III)',
+  arabic: 'Angka Arab (1, 2, 3)',
+  top: 'Atas',
+  bottom: 'Bawah',
+  left: 'Kiri',
+  center: 'Tengah',
+  right: 'Kanan',
+}
+
+const COVER_LABELS = {
+  logo: 'Logo Polinela',
+  npm: 'Nama & NPM penulis',
+  institusi: 'Nama institusi',
+  tahun: 'Tahun',
+}
+
+const asObject = (value) => (value && typeof value === 'object' ? value : {})
+
+function OptionSelect({ value, options, onChange, label }) {
+  return (
+    <label className="field margin-field">
+      <span>{label}</span>
+      <select className="select" value={value ?? ''} onChange={(e) => onChange(e.target.value)}>
+        {options.map((option) => (
+          <option key={option} value={option}>
+            {PAGE_OPTION_LABELS[option] ?? option}
+          </option>
+        ))}
+      </select>
+    </label>
+  )
+}
+
 function ValueInput({ rule, value, onChange }) {
   const spec = rule.input ?? { type: 'text' }
   const id = `value-${rule.id}`
+
+  // Ukuran kertas / logo: lebar, tinggi, toleransi (cm).
+  if (spec.type === 'size') {
+    const size = asObject(value)
+    return (
+      <div className="margin-grid">
+        {Object.entries(SIZE_LABELS).map(([key, label]) => (
+          <label key={key} className="field margin-field">
+            <span>
+              {label} ({spec.unit})
+            </span>
+            <input
+              type="number"
+              className="input"
+              min={key === 'tolerance_cm' ? 0 : spec.min}
+              max={key === 'tolerance_cm' ? 5 : spec.max}
+              step={0.1}
+              value={size[key] ?? ''}
+              onChange={(e) => onChange({ ...size, [key]: e.target.value })}
+            />
+          </label>
+        ))}
+      </div>
+    )
+  }
+
+  // Nomor halaman: format, letak, posisi untuk halaman awal & bagian isi.
+  if (spec.type === 'page_number') {
+    const rules = asObject(value)
+    const update = (group, key, next) =>
+      onChange({ ...rules, [group]: { ...asObject(rules[group]), [key]: next } })
+    return (
+      <div className="stack" style={{ gap: 12 }}>
+        {Object.entries(PAGE_GROUP_LABELS).map(([group, label]) => {
+          const part = asObject(rules[group])
+          return (
+            <div key={group}>
+              <div className="small muted" style={{ marginBottom: 6 }}>
+                {label}
+              </div>
+              <div className="margin-grid">
+                <OptionSelect
+                  label="Format"
+                  value={part.format}
+                  options={spec.formats}
+                  onChange={(next) => update(group, 'format', next)}
+                />
+                <OptionSelect
+                  label="Letak"
+                  value={part.vertical}
+                  options={['', ...spec.verticals]}
+                  onChange={(next) => update(group, 'vertical', next)}
+                />
+                <OptionSelect
+                  label="Posisi"
+                  value={part.horizontal}
+                  options={['', ...spec.horizontals]}
+                  onChange={(next) => update(group, 'horizontal', next)}
+                />
+              </div>
+            </div>
+          )
+        })}
+      </div>
+    )
+  }
+
+  // Kelengkapan sampul: elemen wajib + nama institusi.
+  if (spec.type === 'cover') {
+    const cover = asObject(value)
+    const required = Array.isArray(cover.required) ? cover.required : []
+    const toggle = (key) =>
+      onChange({
+        ...cover,
+        required: required.includes(key)
+          ? required.filter((item) => item !== key)
+          : spec.elements.filter((item) => item === key || required.includes(item)),
+      })
+    return (
+      <div className="stack" style={{ gap: 10 }}>
+        <div className="row" style={{ gap: 16 }}>
+          {spec.elements.map((key) => (
+            <label key={key} className="row small" style={{ gap: 6, flexWrap: 'nowrap' }}>
+              <input type="checkbox" checked={required.includes(key)} onChange={() => toggle(key)} />
+              {COVER_LABELS[key] ?? key}
+            </label>
+          ))}
+        </div>
+        {required.includes('institusi') && (
+          <label className="field">
+            <span>Nama institusi yang harus ada di sampul</span>
+            <input
+              className="input"
+              value={cover.institution ?? ''}
+              onChange={(e) => onChange({ ...cover, institution: e.target.value })}
+            />
+          </label>
+        )}
+      </div>
+    )
+  }
 
   if (spec.type === 'select') {
     return (

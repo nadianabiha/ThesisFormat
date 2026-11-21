@@ -1,3 +1,4 @@
+from django.conf import settings
 from rest_framework import serializers
 
 from .models import Document
@@ -76,6 +77,22 @@ class DocumentSerializer(serializers.ModelSerializer):
             "uploaded_at",
             "updated_at",
         )
+
+    def validate_file(self, file):
+        """
+        Jenis & ukuran file juga dicek di server (bukan hanya di aplikasi),
+        karena API bisa dipanggil langsung tanpa lewat aplikasi.
+        """
+        name = (getattr(file, "name", "") or "").lower()
+        if not name.endswith(settings.ALLOWED_UPLOAD_EXTENSIONS):
+            raise serializers.ValidationError(
+                "Format file tidak didukung. Unggah file .pdf atau .docx."
+            )
+        if file.size > settings.MAX_UPLOAD_MB * 1024 * 1024:
+            raise serializers.ValidationError(
+                f"Ukuran file melebihi batas {settings.MAX_UPLOAD_MB} MB."
+            )
+        return file
 
     def get_result(self, obj):
         return get_document_result(obj)

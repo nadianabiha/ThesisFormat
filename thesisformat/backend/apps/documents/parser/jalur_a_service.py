@@ -1,16 +1,34 @@
 from apps.documents.parser.parser_service import parse_document
+from apps.documents.checker.chapters import assign_chapters
 from apps.documents.checker.physical_checker import check_physical_rules
 
 
-def run_jalur_a(file_path, rules=None):
+def extract_document(file_path):
+    """
+    Ekstraksi teks & metadata dokumen (.docx / .pdf), dilakukan SEKALI
+    lalu hasilnya dipakai bersama oleh Jalur A dan Jalur B yang berjalan
+    paralel (Laporan Perancangan D.3).
+    """
+    parsed_document = parse_document(file_path)
+    # Label bab per paragraf: untuk menampilkan kesalahan per bab,
+    # membedakan halaman awal/isi (nomor halaman), dan dikirim ke AI.
+    parsed_document["chapters"] = assign_chapters(parsed_document.get("paragraphs", []))
+    return parsed_document
+
+
+def run_jalur_a(file_path, rules=None, parsed_document=None):
     """
     Jalur A entry point.
-    - Parse dokumen (.docx / .pdf)
+    - Pakai hasil ekstraksi (parsed_document) jika sudah ada; jika tidak,
+      ekstrak dokumen dulu (.docx / .pdf)
     - Jika rules tersedia dan hasil parse mendukung checker,
       jalankan physical checker
     - Kembalikan hasil yang siap dipakai backend
+    Hanya MEMBACA parsed_document, sehingga aman berjalan bersamaan
+    dengan Jalur B.
     """
-    parsed_document = parse_document(file_path)
+    if parsed_document is None:
+        parsed_document = extract_document(file_path)
 
     findings = []
     checker_applied = False

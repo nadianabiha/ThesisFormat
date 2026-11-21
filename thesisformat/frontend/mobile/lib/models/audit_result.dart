@@ -5,12 +5,17 @@ class Finding {
     required this.location,
     required this.detail,
     this.severity = '',
+    this.chapter = '',
   });
 
   final String type;
   final String title;
   final String location;
   final String detail;
+
+  /// Bab tempat temuan, mis. "BAB I PENDAHULUAN", "Halaman sampul", atau
+  /// "Seluruh dokumen". Kosong untuk hasil lama sebelum fitur per bab.
+  final String chapter;
 
   /// Tingkat kesalahan temuan AI yang gagal: ringan / sedang / berat.
   /// Kosong untuk temuan format atau temuan yang lulus.
@@ -62,6 +67,7 @@ class Finding {
       location: location,
       detail: detail,
       severity: (json['severity'] ?? '').toString().trim().toLowerCase(),
+      chapter: (json['chapter'] ?? '').toString().trim(),
     );
   }
 
@@ -71,6 +77,7 @@ class Finding {
         'location': location,
         'detail': detail,
         'severity': severity,
+        'chapter': chapter,
       };
 }
 

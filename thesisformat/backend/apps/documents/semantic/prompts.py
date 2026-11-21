@@ -78,13 +78,15 @@ DEFAULT_ASPECTS = [
 MAX_TEXT_CHARS = 250_000
 
 
-def build_semantic_prompt(full_text, document_type=None, aspects=None):
+def build_semantic_prompt(full_text, document_type=None, aspects=None, chapters=None):
     """
     Prompt pemeriksaan semantik sesuai Panduan Penulisan Karya Ilmiah
     Politeknik Negeri Lampung.
 
     aspects: daftar {"key", "label", "instruction"} yang aktif.
     Jika None, memakai DEFAULT_ASPECTS.
+    chapters: nama bab hasil pembagian dokumen, agar AI menyebut bab
+    tempat setiap masalah (kesalahan ditampilkan per bab).
     """
     doc_label = document_type or "karya tulis ilmiah"
     aspects = DEFAULT_ASPECTS if aspects is None else aspects
@@ -103,6 +105,16 @@ def build_semantic_prompt(full_text, document_type=None, aspects=None):
         "Daftar Pustaka di akhir) sebagai tidak ada.\n"
         if len(full_text) > MAX_TEXT_CHARS
         else ""
+    )
+    chapter_names = ", ".join(f'"{name}"' for name in chapters or [])
+    chapter_rule = (
+        f"Bab dalam dokumen ini (urut): {chapter_names}.\n"
+        "Isi \"chapter\" dengan SATU nama bab dari daftar itu (tulis persis), "
+        "\"Halaman sampul\" atau \"Halaman awal\" untuk bagian sebelum bab pertama, "
+        "atau \"Seluruh dokumen\" jika masalahnya menyeluruh/tidak di satu bab."
+        if chapter_names
+        else "Isi \"chapter\" dengan nama bab tempat masalah (mis. \"BAB I PENDAHULUAN\"), "
+        "atau \"Seluruh dokumen\" jika masalahnya menyeluruh."
     )
 
     return f"""
@@ -127,11 +139,13 @@ Untuk entri "failed", isi "severity" sesuai beratnya kesalahan:
 - "sedang": kesalahan yang cukup sering atau mengganggu (mis. istilah tidak konsisten di beberapa tempat, sisa tulisan draf)
 - "berat": aturan utama dilanggar atau bagian wajib tidak ada (mis. gaya sitasi salah total, daftar isi tidak ada)
 Jika satu aspek punya beberapa masalah berbeda, buat entri terpisah untuk setiap masalah.
+{chapter_rule}
 {{
   "findings": [
     {{
       "category": {categories},
       "issue": "deskripsi singkat; untuk status failed sebutkan aturan Polinela yang dilanggar",
+      "chapter": "nama bab tempat masalah (lihat aturan di atas)",
       "location": "bagian/kalimat yang bermasalah (kutip singkat) atau \\"Lokasi tidak diketahui\\"",
       "status": "passed" atau "failed",
       "severity": "ringan" / "sedang" / "berat" (hanya untuk status failed)

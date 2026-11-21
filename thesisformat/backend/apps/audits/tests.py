@@ -17,6 +17,20 @@ User = get_user_model()
 
 TEMP_MEDIA = tempfile.mkdtemp()
 
+
+def mock_extraction(test):
+    """
+    Tes yang me-mock Jalur A & B memakai file palsu; tahap ekstraksi
+    (sebelum kedua jalur berjalan paralel) ikut di-mock.
+    """
+    patcher = mock.patch(
+        "apps.documents.pipeline.extract_document",
+        return_value={"paragraphs": [{"text": "isi"}], "chapters": []},
+    )
+    patcher.start()
+    test.addCleanup(patcher.stop)
+
+
 # Format 50 (1 lulus, 1 gagal) + semantik 0 (abstrak gagal)
 # -> skor = 0.4*50 + 0.6*0 = 20.
 FINDINGS = [
@@ -38,6 +52,7 @@ class AdminDashboardTests(APITestCase):
         shutil.rmtree(TEMP_MEDIA, ignore_errors=True)
 
     def setUp(self):
+        mock_extraction(self)
         self.admin = User.objects.create_user(
             username="admin@test.id", email="admin@test.id",
             password="rahasia123", is_staff=True,
@@ -271,12 +286,14 @@ class AdminDashboardTests(APITestCase):
     def test_rules_list_and_update_creates_version(self):
         self._login(self.admin)
         data = self.client.get("/api/v1/admin/rules/").data
-        # Migration: 7 aspek umum + 6 aturan susunan bab per jenis dokumen,
-        # tercatat sebagai 1 versi (Penyesuaian Pedoman Polinela 2018).
-        self.assertEqual(len(data["semantic"]), 13)
-        # Versi dari migrasi: 1 = Pedoman 2018, 2 = penanda huruf miring.
-        self.assertEqual(data["current_version"], 2)
-        self.assertEqual(RuleVersion.objects.count(), 2)
+        # Migration: 7 aspek umum + 6 aturan susunan bab per jenis dokumen
+        # + 4 aturan abstrak per jenis dokumen.
+        self.assertEqual(len(data["semantic"]), 17)
+        # Versi dari migrasi: 1 = Pedoman 2018, 2 = penanda huruf miring,
+        # 3 = aturan tata letak, 4 = abstrak per jenis dokumen,
+        # 5 = letak nomor halaman tidak dinilai.
+        self.assertEqual(data["current_version"], 5)
+        self.assertEqual(RuleVersion.objects.count(), 5)
 
         abstrak = MasterRule.objects.get(category="semantic", rule_key="abstrak", document_type="")
         response = self.client.patch(
@@ -286,14 +303,14 @@ class AdminDashboardTests(APITestCase):
         )
         self.assertEqual(response.status_code, 200, response.data)
         self.assertEqual(response.data["version"], RuleVersion.current())
-        self.assertEqual(RuleVersion.current(), 3)
-        version = RuleVersion.objects.get(pk=3)
+        self.assertEqual(RuleVersion.current(), 6)
+        version = RuleVersion.objects.get(pk=6)
         self.assertEqual(version.note, "Longgarkan abstrak")
         self.assertEqual(version.changes[0]["after"]["instruction"], "Abstrak maksimal 300 kata.")
 
         # Instruksi baru dipakai saat membangun prompt.
-        aspects = MasterRule.semantic_aspects("pkl")
-        self.assertIn("Abstrak maksimal 300 kata.", build_semantic_prompt("teks", "PKL", aspects))
+        aspects = MasterRule.semantic_aspects("tugas_akhir")
+        self.assertIn("Abstrak maksimal 300 kata.", build_semantic_prompt("teks", "Tugas Akhir", aspects))
 
         # Tanpa perubahan -> ditolak.
         response = self.client.patch(
@@ -365,8 +382,10 @@ class AdminDashboardTests(APITestCase):
         self.assertEqual((run.trigger, run.triggered_by, run.status), ("reanalyze", self.admin, "success"))
 
         # Instruksi AI dari MasterRule dikirim ke Jalur B.
+        # doc_b = Laporan PKL: 6 aspek, tanpa abstrak (PKL tidak wajib abstrak).
         aspects = jalur_b.call_args.kwargs["aspects"]
-        self.assertEqual(len(aspects), 7)
+        self.assertEqual(len(aspects), 6)
+        self.assertNotIn("abstrak", [a["key"] for a in aspects])
 
     @mock.patch("apps.documents.pipeline.run_jalur_b")
     @mock.patch("apps.documents.pipeline.run_jalur_a")
@@ -435,8 +454,9 @@ class PedomanPolinelaRulesTests(APITestCase):
         self.assertIn("Analisis Situasi", hierarki("proposal_pengabdian"))
         self.assertIn("METODOLOGI", hierarki("makalah_ilmiah"))
         self.assertIn("TINJAUAN PUSTAKA", hierarki("tugas_akhir"))
-        # Aspek lain tetap memakai aturan umum.
-        self.assertEqual(len(MasterRule.semantic_aspects("pkl")), 7)
+        # Aspek lain tetap memakai aturan umum (PKL: tanpa abstrak).
+        self.assertEqual(len(MasterRule.semantic_aspects("tugas_akhir")), 7)
+        self.assertEqual(len(MasterRule.semantic_aspects("pkl")), 6)
 
 
 class PhysicalCheckerTests(SimpleTestCase):
@@ -632,6 +652,7 @@ class DocumentRecheckTests(APITestCase):
     """Cek ulang dokumen milik sendiri tanpa unggah ulang."""
 
     def setUp(self):
+        mock_extraction(self)
         from django.core.files.uploadedfile import SimpleUploadedFile
         from apps.documents.models import Document
         self.owner = User.objects.create_user(username="pemilik", password="rahasia123")
@@ -854,3 +875,190 @@ class GeminiAccuracyTests(SimpleTestCase):
             self.assertEqual(gemini_client.generate("p", model="lite"), "ok")
         self.assertEqual(len(configs), 2)
         self.assertIsNone(configs[1].thinking_config)
+
+
+class LayoutRuleEditTests(APITestCase):
+    """Aturan tata letak (kertas, nomor halaman, logo, sampul) bisa diedit admin."""
+
+    def setUp(self):
+        admin = User.objects.create_user(username="adm2", password="rahasia123", is_staff=True)
+        self.client.force_authenticate(admin)
+
+    def _rule(self, key):
+        return MasterRule.objects.get(category="physical", rule_key=key, document_type="")
+
+    def _patch(self, key, value):
+        return self.client.patch(
+            f"/api/v1/admin/rules/{self._rule(key).pk}/", {"value": value}, format="json",
+        )
+
+    def test_rules_page_gets_input_specs(self):
+        physical = {r["rule_key"]: r for r in self.client.get("/api/v1/admin/rules/").data["physical"]}
+        self.assertEqual(physical["logo_size"]["input"]["type"], "size")
+        self.assertEqual(physical["paper_size"]["input"]["type"], "size")
+        self.assertEqual(physical["page_number"]["input"]["type"], "page_number")
+        self.assertEqual(physical["cover"]["input"]["type"], "cover")
+        self.assertEqual(physical["logo_size"]["value"]["width_cm"], 4)
+
+    def test_save_valid_layout_values(self):
+        response = self._patch("logo_size", {"width_cm": "4.5", "height_cm": "4", "tolerance_cm": "0.2"})
+        self.assertEqual(response.status_code, 200, response.data)
+        self.assertEqual(self._rule("logo_size").rule_value["value"],
+                         {"width_cm": 4.5, "height_cm": 4, "tolerance_cm": 0.2})
+
+        page = {
+            "front": {"format": "roman_lower", "vertical": "bottom", "horizontal": "center"},
+            "body": {"format": "arabic", "vertical": "top", "horizontal": "right"},
+        }
+        self.assertEqual(self._patch("page_number", page).status_code, 200)
+        self.assertEqual(self._rule("page_number").rule_value["value"], page)
+
+        response = self._patch("cover", {"required": ["tahun", "logo"], "institution": ""})
+        self.assertEqual(response.status_code, 200, response.data)
+        # Urutan baku, institusi bawaan tetap terisi.
+        self.assertEqual(self._rule("cover").rule_value["value"]["required"], ["logo", "tahun"])
+
+    def test_broken_values_are_rejected(self):
+        """Dulu web mengirim teks "[object Object]" dan merusak aturan."""
+        for key in ("logo_size", "paper_size", "page_number", "cover"):
+            before = self._rule(key).rule_value
+            response = self._patch(key, "[object Object]")
+            self.assertEqual(response.status_code, 400, key)
+            self.assertEqual(self._rule(key).rule_value, before)
+        bad_page = {"front": {"format": "huruf", "vertical": "atas", "horizontal": "kanan"}, "body": {}}
+        self.assertEqual(self._patch("page_number", bad_page).status_code, 400)
+        self.assertEqual(self._patch("cover", {"required": []}).status_code, 400)
+
+
+class AbstrakPerTypeTests(APITestCase):
+    """Abstrak dicek sesuai jenis dokumen (Master Rules, bukan hardcode)."""
+
+    def _keys(self, document_type):
+        return [a["key"] for a in MasterRule.semantic_aspects(document_type)]
+
+    def test_abstrak_only_for_types_that_need_it(self):
+        for document_type in ("proposal_penelitian", "praktik", "pkl"):
+            self.assertNotIn("abstrak", self._keys(document_type), document_type)
+        for document_type in ("tugas_akhir", "makalah_ilmiah", "proposal_pengabdian"):
+            self.assertIn("abstrak", self._keys(document_type), document_type)
+        # Aspek lain tetap dicek untuk proposal.
+        self.assertIn("sitasi", self._keys("proposal_penelitian"))
+        self.assertIn("hierarki_bab", self._keys("proposal_penelitian"))
+
+    def test_admin_can_switch_abstrak_for_pengabdian(self):
+        admin = User.objects.create_user(username="adm3", password="rahasia123", is_staff=True)
+        self.client.force_authenticate(admin)
+        rule = MasterRule.objects.get(
+            category="semantic", rule_key="abstrak", document_type="proposal_pengabdian",
+        )
+        response = self.client.patch(f"/api/v1/admin/rules/{rule.pk}/", {"active": False}, format="json")
+        self.assertEqual(response.status_code, 200, response.data)
+        self.assertNotIn("abstrak", self._keys("proposal_pengabdian"))
+        # Jenis lain tidak terpengaruh.
+        self.assertIn("abstrak", self._keys("tugas_akhir"))
+
+    def test_inactive_specific_rule_does_not_fall_back_to_general(self):
+        general = MasterRule.objects.get(category="physical", rule_key="logo_size", document_type="")
+        MasterRule.objects.create(
+            category="physical", document_type="makalah_ilmiah", rule_key="logo_size",
+            rule_value=general.rule_value, active=False,
+        )
+        keys = {r.rule_key for r in MasterRule.for_document("physical", "makalah_ilmiah")}
+        self.assertNotIn("logo_size", keys)
+        self.assertIn("logo_size", {r.rule_key for r in MasterRule.for_document("physical", "pkl")})
+
+
+class PageNumberPositionTests(APITestCase):
+    """Letak nomor halaman tidak dinilai (pedoman ambigu); format tetap."""
+
+    def _rule(self):
+        return MasterRule.objects.get(category="physical", rule_key="page_number", document_type="")
+
+    def test_position_is_not_checked_by_default(self):
+        from apps.documents.checker.layout_checks import check_page_number
+
+        value = self._rule().rule_value["value"]
+        self.assertIsNone(value["front"]["vertical"])
+        self.assertIsNone(value["body"]["horizontal"])
+        self.assertEqual(value["front"]["format"], "roman_lower")
+        self.assertEqual(value["body"]["format"], "arabic")
+
+        # Nomor di tengah bawah (tafsiran lain) tidak disalahkan,
+        # tetapi format angka yang salah tetap disalahkan.
+        paragraphs = [
+            {"text": "KATA PENGANTAR", "chapter": "KATA PENGANTAR", "section_index": 0},
+            {"text": "BAB I", "chapter": "BAB I PENDAHULUAN", "section_index": 1},
+        ]
+        def parsed(front_format):
+            return {"paragraphs": paragraphs, "sections": [
+                {"page_number": {"format": front_format, "vertical": "bottom", "horizontal": "center"}},
+                {"page_number": {"format": "arabic", "vertical": "bottom", "horizontal": "center"}},
+            ]}
+        self.assertEqual(check_page_number(parsed("roman_lower"), value)["status"], "passed")
+        wrong = check_page_number(parsed("arabic"), value)
+        self.assertEqual(wrong["status"], "failed")
+        self.assertIn("romawi kecil", wrong["message"])
+
+    def test_admin_can_choose_not_checked_or_a_position(self):
+        admin = User.objects.create_user(username="adm4", password="rahasia123", is_staff=True)
+        self.client.force_authenticate(admin)
+        url = f"/api/v1/admin/rules/{self._rule().pk}/"
+        value = {
+            "front": {"format": "roman_lower", "vertical": "bottom", "horizontal": "right"},
+            "body": {"format": "arabic", "vertical": "", "horizontal": ""},
+        }
+        response = self.client.patch(url, {"value": value}, format="json")
+        self.assertEqual(response.status_code, 200, response.data)
+        saved = self._rule().rule_value["value"]
+        self.assertEqual(saved["front"]["vertical"], "bottom")
+        self.assertIsNone(saved["body"]["vertical"])
+
+
+@override_settings(MEDIA_ROOT=TEMP_MEDIA)
+class ParallelPipelineTests(APITestCase):
+    """Jalur A dan Jalur B berjalan paralel (Laporan Perancangan D.3)."""
+
+    def test_jalur_a_and_b_run_at_the_same_time(self):
+        import threading
+        import time as time_module
+
+        from apps.documents.pipeline import check_document
+
+        student = User.objects.create_user(username="mhs_paralel", password="rahasia123")
+        document = Document.objects.create(
+            user=student, title="paralel.docx", document_type="tugas_akhir",
+            file=SimpleUploadedFile("paralel.docx", b"x"),
+        )
+        parsed = {"paragraphs": [{"text": "isi"}], "chapters": []}
+        seen = {}
+
+        def slow_a(file_path, rules=None, parsed_document=None):
+            seen["a"] = (threading.current_thread().name, parsed_document)
+            time_module.sleep(0.5)
+            return {"parsed_document": parsed_document, "findings": [], "summary": {}}
+
+        def slow_b(parsed_document, document_type=None, aspects=None):
+            seen["b"] = (threading.current_thread().name, parsed_document)
+            time_module.sleep(0.5)
+            return {
+                "findings": [{"category": "sitasi", "status": "passed", "issue": "ok"}],
+                "summary": {}, "error": None, "error_type": "", "model": "m",
+                "duration_ms": 500, "unknown_categories": [],
+            }
+
+        started = time_module.monotonic()
+        with mock.patch("apps.documents.pipeline.extract_document", return_value=parsed), \
+                mock.patch("apps.documents.pipeline.run_jalur_a", side_effect=slow_a), \
+                mock.patch("apps.documents.pipeline.run_jalur_b", side_effect=slow_b):
+            checked = check_document(document)
+        elapsed = time_module.monotonic() - started
+
+        # Berurutan butuh >= 1 detik; paralel sekitar 0,5 detik.
+        self.assertLess(elapsed, 0.9)
+        self.assertNotEqual(seen["a"][0], seen["b"][0])
+        # Kedua jalur memakai hasil ekstraksi yang sama (diekstrak sekali).
+        self.assertIs(seen["a"][1], parsed)
+        self.assertIs(seen["b"][1], parsed)
+        self.assertIn("jalur_b_ms", checked["timing"])
+        document.refresh_from_db()
+        self.assertIn("timing", document.metadata)

@@ -1,0 +1,41 @@
+# Contoh konfigurasi Nginx untuk ThesisFormat (BELUM dipakai/di-deploy).
+# Sesuai Laporan Perancangan: Django + PostgreSQL di server kampus,
+# web dashboard React disajikan lewat Nginx sebagai reverse proxy.
+#
+# Django dijalankan dengan Gunicorn, batas waktu dinaikkan karena satu
+# upload menunggu Jalur A + Gemini (bisa sampai ±3 menit):
+#   pip install gunicorn
+#   gunicorn config.wsgi:application --bind 127.0.0.1:8000 --timeout 300 --workers 3
+
+server {
+    listen 80;
+    server_name 103.151.63.84;
+
+    # Batas ukuran upload (aplikasi & backend membatasi 20 MB).
+    # Bawaan Nginx hanya 1 MB, jadi upload dokumen akan ditolak tanpa ini.
+    client_max_body_size 25m;
+
+    # Web dashboard React: hasil `npm run build` (folder dist).
+    root /var/www/thesisformat/web;
+    index index.html;
+    location / {
+        try_files $uri /index.html;
+    }
+
+    # API Django + Django Admin Panel.
+    location ~ ^/(api|admin)/ {
+        proxy_pass http://127.0.0.1:8000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        # Upload menunggu pemeriksaan AI: bawaan 60 detik terlalu pendek.
+        proxy_read_timeout 300s;
+        proxy_send_timeout 300s;
+    }
+
+    # Tampilan Django Admin Panel (hasil `python manage.py collectstatic`).
+    location /static/ {
+        alias /var/www/thesisformat/backend/staticfiles/;
+    }
+}
