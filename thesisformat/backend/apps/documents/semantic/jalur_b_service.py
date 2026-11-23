@@ -1,4 +1,5 @@
 import json
+import os
 import re
 import time
 
@@ -20,8 +21,12 @@ TRANSIENT_CODES = {429, 500, 502, 503, 504}
 # Batas total waktu untuk semua percobaan (detik). Model cadangan hanya
 # dicoba jika sisa waktu masih cukup untuk satu panggilan penuh, agar
 # upload tidak menggantung terlalu lama. Tetap di bawah batas tunggu
-# "Cek ulang" di app (4 menit).
-TOTAL_BUDGET_SECONDS = 180
+# "Cek ulang" di app (4 menit). Di server di belakang Cloudflare (batas
+# 100 detik per permintaan) isi AI_TOTAL_BUDGET_SECONDS=70 di .env.
+try:
+    TOTAL_BUDGET_SECONDS = max(10, int(os.getenv("AI_TOTAL_BUDGET_SECONDS", "180")))
+except ValueError:
+    TOTAL_BUDGET_SECONDS = 180
 
 # Jenis penyebab kegagalan AI (dipakai halaman "Kinerja AI").
 ERROR_LABELS = {
