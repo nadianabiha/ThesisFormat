@@ -141,9 +141,12 @@ function ReviewPanel({ doc, rejected, onSaved, onResetRejected }) {
       </div>
 
       <div className="alert alert-info-soft small">
-        Centang temuan yang <strong>keliru</strong> pada daftar temuan. Temuan itu disembunyikan dari
-        mahasiswa, skor <strong>dihitung ulang otomatis</strong>, dan tanda ini dipakai untuk mengamati
-        pola kesalahan AI di halaman Kinerja AI.
+        {/* Dibungkus satu <span> agar teks dan <strong> tidak dipecah jadi kolom oleh flex .alert */}
+        <span>
+          Centang temuan yang <strong>keliru</strong> pada daftar temuan. Temuan itu disembunyikan dari
+          mahasiswa, skor <strong>dihitung ulang otomatis</strong>, dan tanda ini dipakai untuk mengamati
+          pola kesalahan AI di halaman Kinerja AI.
+        </span>
       </div>
 
       <div className="row small" style={{ justifyContent: 'space-between' }}>
