@@ -6,7 +6,6 @@ import {
   Calendar,
   Check,
   CheckCircle2,
-  Download,
   RefreshCw,
   Ruler,
   User,
@@ -439,11 +438,6 @@ export default function DocumentDetailPage() {
                   <span>
                     <Calendar size={14} /> {formatDateTime(doc.uploaded_at)}
                   </span>
-                  {doc.file_url && (
-                    <a href={doc.file_url} target="_blank" rel="noreferrer">
-                      <Download size={14} style={{ verticalAlign: '-2px' }} /> Buka file
-                    </a>
-                  )}
                 </div>
                 {recalculated && (
                   <div className="small" style={{ marginTop: 10, opacity: 0.9 }}>

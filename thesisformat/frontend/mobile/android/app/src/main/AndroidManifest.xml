@@ -1,4 +1,7 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Wajib untuk APK rilis: tanpa izin ini aplikasi tidak bisa
+         menghubungi server (mode debug menambahkannya otomatis). -->
+    <uses-permission android:name="android.permission.INTERNET"/>
     <application
         android:label="ThesisFormat"
         android:name="${applicationName}"

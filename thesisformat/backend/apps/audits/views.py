@@ -130,7 +130,6 @@ def _document_detail(document, request):
 
     return {
         **summary,
-        "file_url": request.build_absolute_uri(document.file.url) if document.file else None,
         "ai_error": jalur_b.get("error"),
         "findings": findings,
         "can_review": audit is not None,
